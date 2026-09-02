@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-02
+
+First release of Pharos as an independent project at
+[spre-sre/pharos](https://github.com/spre-sre/pharos) (fresh-history import;
+derived from lumino-mcp-server, see NOTICE).
+
 ### Added
+- Multi-cluster source dispatch: every tool accepts `source=<cluster>`; `connect_cluster` registers named clusters from kubeconfig contexts
+- Streamable HTTP transport with bearer-token auth (fail-closed on 0.0.0.0)
+- GitHub Actions CI: 1699-test suite gate, multi-arch (amd64/arm64) container build, dev images to quay.io/geored/pharos, post-push smoke test
 - Live tool matrix runner (`scripts/live_matrix.py`): spawns the MCP server as a stdio subprocess, sweeps all 48 tools against a live cluster, persists JSON run records, and diffs any two runs to flag schema/status regressions
 - Input catalog covering all 48 tools with a completeness gate — every registered tool has a declared call shape enforced by a coverage test
 

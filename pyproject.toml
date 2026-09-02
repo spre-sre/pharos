@@ -3,7 +3,7 @@
 # Renaming it would claim an unclaimed PyPI slot before the new remote exists.
 # Allowlisted by exact path+key in tests/test_ci_identity.py.
 name = "pharos-mcp-server"
-version = "0.9.3"
+version = "1.0.0"
 description = "An open source MCP server empowering SREs with intelligent observability, predictive analytics, and AI-driven automation across Kubernetes, OpenShift, and Tekton environments."
 readme = "README.md"
 license = "Apache-2.0"
