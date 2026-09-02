@@ -1,0 +1,33 @@
+name: k8s-core
+runbooks:
+  pod_crash_loop:
+    title: Pod Crash Loop Remediation
+    steps:
+      - Check pod logs for error messages
+      - Verify resource limits and requests
+      - Check application configuration
+      - Review health check endpoints
+      - Validate container image
+    estimated_time: 15-30 minutes
+    severity: HIGH
+  memory_exhaustion:
+    title: Memory Exhaustion Response
+    steps:
+      - Identify high memory consuming pods
+      - Check for memory leaks in applications
+      - Review memory limits configuration
+      - Consider horizontal pod scaling
+      - Implement memory monitoring alerts
+    estimated_time: 20-45 minutes
+    severity: CRITICAL
+  network_connectivity:
+    title: Network Connectivity Issues
+    steps:
+      - Test DNS resolution
+      - Check network policies
+      - Verify service endpoints
+      - Review ingress configuration
+      - Test inter-pod communication
+    estimated_time: 25-40 minutes
+    severity: HIGH
+labels: {}

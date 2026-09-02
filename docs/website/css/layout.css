@@ -1,0 +1,314 @@
+/* ==========================================================================
+   Layout / Grid / Container Styles
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Container
+   -------------------------------------------------------------------------- */
+
+.container {
+  max-width: var(--container-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--container-padding);
+  padding-right: var(--container-padding);
+}
+
+/* --------------------------------------------------------------------------
+   Sections
+   -------------------------------------------------------------------------- */
+
+.section {
+  padding-top: var(--space-5xl);
+  padding-bottom: var(--space-5xl);
+  position: relative;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: var(--space-3xl);
+}
+
+.section-title {
+  font-size: var(--text-4xl);
+  margin-bottom: var(--space-md);
+  position: relative;
+  display: inline-block;
+}
+
+.section-title::after {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 3px;
+  background: var(--accent-cyan);
+  margin-top: var(--space-sm);
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 2px;
+}
+
+.section-subtitle {
+  font-size: var(--text-lg);
+  color: var(--text-secondary);
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Grid System
+   -------------------------------------------------------------------------- */
+
+.grid {
+  display: grid;
+  gap: var(--space-xl);
+}
+
+.grid-2 {
+  grid-template-columns: 1fr;
+}
+
+.grid-3 {
+  grid-template-columns: 1fr;
+}
+
+.grid-4 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Sticky Header
+   -------------------------------------------------------------------------- */
+
+.sticky-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: var(--z-sticky);
+  transition: background-color 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.sticky-header.scrolled {
+  background-color: rgba(15, 20, 32, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom-color: var(--border-subtle);
+}
+
+/* --------------------------------------------------------------------------
+   Header Inner
+   -------------------------------------------------------------------------- */
+
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: var(--header-height);
+  padding-left: var(--container-padding);
+  padding-right: var(--container-padding);
+  max-width: var(--container-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Navigation Links
+   -------------------------------------------------------------------------- */
+
+.nav-links {
+  display: flex;
+  gap: var(--space-lg);
+}
+
+.nav-link {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.nav-link.active {
+  color: var(--accent-cyan);
+}
+
+/* --------------------------------------------------------------------------
+   Header Actions
+   -------------------------------------------------------------------------- */
+
+.header-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Navigation Toggle (Hamburger)
+   -------------------------------------------------------------------------- */
+
+.mobile-nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-xs);
+}
+
+.mobile-nav-toggle span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background-color: var(--text-secondary);
+  border-radius: 1px;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+@media (max-width: 767px) {
+  .mobile-nav-toggle {
+    display: flex;
+  }
+
+  .nav-links {
+    display: none;
+  }
+
+  .header-actions .btn-label-desktop {
+    display: none;
+  }
+}
+
+/* Hamburger open state (X shape) */
+.mobile-nav-toggle.open span:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+
+.mobile-nav-toggle.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-nav-toggle.open span:nth-child(3) {
+  transform: rotate(-45deg) translate(5px, -5px);
+}
+
+/* --------------------------------------------------------------------------
+   Logo
+   -------------------------------------------------------------------------- */
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.logo:hover {
+  text-decoration: none;
+}
+
+.logo svg {
+  display: inline-block;
+}
+
+.logo-text {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
+}
+
+/* --------------------------------------------------------------------------
+   Body scroll lock
+   -------------------------------------------------------------------------- */
+
+body.no-scroll {
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Workflow Steps
+   -------------------------------------------------------------------------- */
+
+.grid-5 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
+}
+
+@media (min-width: 640px) {
+  .grid-5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-5 {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.workflow-step {
+  text-align: center;
+  padding: var(--space-lg);
+}
+
+.workflow-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-cyan-dim);
+  color: var(--accent-cyan);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.workflow-step h4 {
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.workflow-step p {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

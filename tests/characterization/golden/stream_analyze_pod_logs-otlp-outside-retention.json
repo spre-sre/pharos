@@ -1,0 +1,13 @@
+{
+  "covered_window": [
+    "<TS>Z",
+    "<TS>Z"
+  ],
+  "evicted": 1,
+  "message": "outside retention: 1 record(s) evicted; buffer covers from <TS>Z",
+  "outside_retention": true,
+  "requested_window": [
+    "unbounded",
+    "<TS>Z"
+  ]
+}

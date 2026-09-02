@@ -1,0 +1,48 @@
+{
+  "metadata": {
+    "analysis_parameters": {
+      "focus_areas": [
+        "errors",
+        "warnings",
+        "performance"
+      ],
+      "max_context_tokens": 10000,
+      "summary_level": "detailed",
+      "time_segments": "<VOLATILE>"
+    },
+    "container_info": {
+      "main": 1,
+      "sidecar": 1
+    },
+    "namespace": "team-a",
+    "pod_name": "api-2c",
+    "processing_metrics": {
+      "estimated_tokens_used": 95,
+      "patterns_extracted": 0,
+      "processing_time_seconds": "<VOLATILE>",
+      "token_efficiency": "99.1% unused",
+      "total_log_lines": 2
+    }
+  },
+  "patterns": {},
+  "representative_samples": {},
+  "summary": {
+    "critical_issues": [],
+    "key_findings": [],
+    "overview": {
+      "critical_categories": [],
+      "error_count": 0,
+      "performance_issues": 0,
+      "total_issues_found": 0,
+      "warning_count": 0
+    },
+    "pattern_counts": {
+      "errors": 0,
+      "performance": 0,
+      "warnings": 0
+    },
+    "recommendations": [],
+    "timeline_analysis": "<VOLATILE>"
+  },
+  "time_segments": "<VOLATILE>"
+}

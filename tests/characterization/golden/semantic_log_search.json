@@ -1,0 +1,82 @@
+{
+  "query_interpretation": {
+    "identified_components": [],
+    "interpreted_intent": "Investigating errors and failures in recent activity focusing on: database, connection, failure",
+    "original_query": "database connection failure",
+    "search_strategy": "error_focused_search",
+    "time_scope": "<VOLATILE>"
+  },
+  "result_summary": {
+    "common_patterns": [
+      "Frequent info level messages (2/2)",
+      "Common terms: 2026-07-20t10:00:02z, error, connection, refused, db:5432"
+    ],
+    "severity_distribution": {
+      "debug": 0,
+      "error": 0,
+      "info": 2,
+      "unknown": 0,
+      "warn": 0
+    },
+    "sources_searched": 1,
+    "total_matches": 2
+  },
+  "search_results": [
+    {
+      "log_entry": {
+        "level": "info",
+        "line_number": 2,
+        "message": "<TS>Z ERROR connection refused to db:5432",
+        "timestamp": "<VOLATILE>"
+      },
+      "match_reasons": [
+        "Keywords: connection",
+        "Error pattern detected",
+        "Timestamped entry"
+      ],
+      "related_entries": 2,
+      "relevance_score": 1.0,
+      "similar_count": 19,
+      "source": {
+        "namespace": "team-a",
+        "node_name": "node-1",
+        "pod_name": "api-1",
+        "pod_status": "Running",
+        "type": "pod_logs"
+      }
+    },
+    {
+      "log_entry": {
+        "level": "info",
+        "line_number": 2,
+        "message": "<TS>Z ERROR connection refused to db:5432",
+        "timestamp": "<VOLATILE>"
+      },
+      "match_reasons": [
+        "Keywords: connection",
+        "Error pattern detected",
+        "Timestamped entry"
+      ],
+      "related_entries": 2,
+      "relevance_score": 1.0,
+      "similar_count": 19,
+      "source": {
+        "namespace": "team-a",
+        "node_name": "node-1",
+        "pod_name": "api-2",
+        "pod_status": "Pending",
+        "type": "pod_logs"
+      }
+    }
+  ],
+  "suggestions": {
+    "broader_search": "",
+    "narrower_search": "",
+    "related_queries": [
+      "Try more specific keywords related to your issue",
+      "Include error messages or specific component names",
+      "Search for 'exception' or 'failed' for more error details",
+      "Try searching for specific error codes or messages"
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+name: openshift
+runbooks:
+  etcd_issues:
+    title: etcd Cluster Health Issues
+    steps:
+      - Check etcd pod logs for leader election or compaction errors
+      - Monitor etcd disk latency and IOPS
+      - Review etcd defragmentation schedule
+      - Check cluster operator status for etcd degradation
+    estimated_time: 20-30 minutes
+    severity: CRITICAL
+    references:
+      - https://github.com/openshift/runbooks/tree/master/alerts/cluster-etcd-operator
+      - https://docs.openshift.com/container-platform/latest/scalability_and_performance/recommended-performance-scale-practices/recommended-etcd-practices.html
+  node_not_ready:
+    title: Node Not Ready
+    steps:
+      - "Check node conditions: kubectl get node <name> -o yaml"
+      - Review kubelet logs on the affected node
+      - Check for disk pressure, memory pressure, or PID pressure
+      - Verify network connectivity to the API server from the node
+    estimated_time: 15-30 minutes
+    severity: CRITICAL
+    references:
+      - https://github.com/openshift/runbooks/tree/master/alerts/machine-config-operator
+      - https://docs.openshift.com/container-platform/latest/nodes/nodes/nodes-nodes-working.html
+  certificate_issues:
+    title: TLS Certificate Issues
+    steps:
+      - Check certificate expiry dates across the cluster
+      - Review certificate rotation status
+      - Check for TLS handshake errors in ingress controller logs
+      - Verify cert-manager or cluster certificate operator health
+    estimated_time: 20-40 minutes
+    severity: HIGH
+    references:
+      - https://docs.openshift.com/container-platform/latest/security/certificate_types_descriptions/index.html
+      - https://github.com/openshift/runbooks/tree/master/alerts/cluster-kube-apiserver-operator
+  machine_config_degraded:
+    title: MachineConfigPool Degraded
+    steps:
+      - Check MachineConfigPool status and degraded message
+      - Identify which nodes are not updated
+      - Review machine-config-daemon logs on affected nodes
+      - Check if a recent MachineConfig change caused the degradation
+    estimated_time: 20-30 minutes
+    severity: HIGH
+    references:
+      - https://github.com/openshift/runbooks/tree/master/alerts/machine-config-operator
+      - https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html
+labels: {}

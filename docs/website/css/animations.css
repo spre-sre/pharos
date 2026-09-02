@@ -1,0 +1,163 @@
+/* ============================================================
+   animations.css
+   Keyframes, scroll-reveal transitions, and motion utilities
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   1. Scroll Reveal
+   ---------------------------------------------------------- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger delays */
+.reveal-delay-1 { transition-delay: 100ms; }
+.reveal-delay-2 { transition-delay: 200ms; }
+.reveal-delay-3 { transition-delay: 300ms; }
+.reveal-delay-4 { transition-delay: 400ms; }
+
+/* ----------------------------------------------------------
+   2. Fade In
+   ---------------------------------------------------------- */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ----------------------------------------------------------
+   3. Pulse Glow
+   ---------------------------------------------------------- */
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--accent-cyan-dim, rgba(0, 255, 255, 0.3));
+  }
+  50% {
+    box-shadow: 0 0 20px var(--accent-cyan-glow, rgba(0, 255, 255, 0.6));
+  }
+}
+
+/* ----------------------------------------------------------
+   4. Slide In Left / Right
+   ---------------------------------------------------------- */
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ----------------------------------------------------------
+   5. Terminal Blink (cursor)
+   ---------------------------------------------------------- */
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* ----------------------------------------------------------
+   6. Typing
+   ---------------------------------------------------------- */
+
+@keyframes typing {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+/* ----------------------------------------------------------
+   7. SVG Dash Draw
+   ---------------------------------------------------------- */
+
+@keyframes dashDraw {
+  from { stroke-dashoffset: 1000; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* ----------------------------------------------------------
+   8. Float
+   ---------------------------------------------------------- */
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ----------------------------------------------------------
+   9. Hero Background Gradient Shift
+   ---------------------------------------------------------- */
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ----------------------------------------------------------
+   10. Reduced Motion (Accessibility)
+   ---------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

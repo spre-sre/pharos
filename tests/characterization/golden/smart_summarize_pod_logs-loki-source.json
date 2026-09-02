@@ -1,0 +1,103 @@
+{
+  "metadata": {
+    "analysis_parameters": {
+      "focus_areas": [
+        "errors",
+        "warnings",
+        "performance"
+      ],
+      "max_context_tokens": 10000,
+      "summary_level": "detailed",
+      "time_segments": "<VOLATILE>"
+    },
+    "container_info": {
+      "namespace=loki-test-ns,pod=api-1": 5,
+      "namespace=loki-test-ns,pod=api-2": 5
+    },
+    "namespace": "loki-test-ns",
+    "pod_name": "*",
+    "processing_metrics": {
+      "estimated_tokens_used": 157,
+      "patterns_extracted": 5,
+      "processing_time_seconds": "<VOLATILE>",
+      "token_efficiency": "98.4% unused",
+      "total_log_lines": 10
+    }
+  },
+  "patterns": {
+    "errors": [
+      {
+        "content": "api-2 ERROR: message-0",
+        "line_number": 6,
+        "matched_text": " message-0",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      },
+      {
+        "content": "api-2 ERROR: message-1",
+        "line_number": 7,
+        "matched_text": " message-1",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      },
+      {
+        "content": "api-2 ERROR: message-2",
+        "line_number": 8,
+        "matched_text": " message-2",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      },
+      {
+        "content": "api-2 ERROR: message-3",
+        "line_number": 9,
+        "matched_text": " message-3",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      },
+      {
+        "content": "api-2 ERROR: message-4",
+        "line_number": 10,
+        "matched_text": " message-4",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      }
+    ]
+  },
+  "representative_samples": {},
+  "summary": {
+    "critical_issues": [],
+    "key_findings": [
+      {
+        "category": "errors",
+        "count": 5,
+        "sample_messages": [
+          "api-2 ERROR: message-0",
+          "api-2 ERROR: message-1",
+          "api-2 ERROR: message-2",
+          "api-2 ERROR: message-3",
+          "api-2 ERROR: message-4"
+        ]
+      }
+    ],
+    "overview": {
+      "critical_categories": [],
+      "error_count": 5,
+      "performance_issues": 0,
+      "total_issues_found": 5,
+      "warning_count": 0
+    },
+    "pattern_counts": {
+      "errors": 5,
+      "performance": 0,
+      "warnings": 0
+    },
+    "recommendations": [],
+    "timeline_analysis": "<VOLATILE>"
+  },
+  "time_segments": "<VOLATILE>"
+}

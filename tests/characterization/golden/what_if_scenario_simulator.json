@@ -1,0 +1,124 @@
+{
+  "affected_components": [],
+  "impact_analysis": {
+    "cost_impact": {
+      "best_case": "-93.4%",
+      "confidence_interval": "-37.1% to 106.3%",
+      "description": "Medium cost increase projected from scaling changes, with higher resource consumption and operational costs",
+      "expected_change": "29.8%",
+      "severity": "medium",
+      "worst_case": "181.5%"
+    },
+    "performance_impact": {
+      "best_case": "-15.6%",
+      "confidence_interval": "-6.2% to 17.7%",
+      "description": "Minimal performance degradation expected from scaling changes, with slower response times and reduced throughput",
+      "expected_change": "5.0%",
+      "severity": "minimal",
+      "worst_case": "30.3%"
+    },
+    "reliability_impact": {
+      "best_case": "-9.3%",
+      "confidence_interval": "-3.7% to 10.6%",
+      "description": "Minimal reliability decrease anticipated from scaling changes, with increased error rates and potential service disruptions",
+      "expected_change": "3.0%",
+      "severity": "minimal",
+      "worst_case": "18.2%"
+    }
+  },
+  "recommendations": {
+    "alternative_approaches": [
+      "Implement gradual scaling instead of immediate changes",
+      "Use horizontal pod autoscaling with conservative thresholds",
+      "Consider blue-green deployment for scaling changes"
+    ],
+    "conditions": [
+      "Gather more historical data for better predictions",
+      "Validate simulation with smaller-scale testing"
+    ],
+    "monitoring_requirements": [
+      "Monitor key performance metrics during and after changes",
+      "Set up alerts for resource utilization thresholds",
+      "Track error rates and response times continuously"
+    ],
+    "proceed": true,
+    "quality_score": 0.38,
+    "risk_level": "LOW"
+  },
+  "risk_assessment": {
+    "affected_critical_components": 0,
+    "overall_risk": "LOW",
+    "risk_breakdown": {
+      "component_risk": 0,
+      "performance_risk": 0.049666,
+      "reliability_risk": 0.029799
+    },
+    "risk_factors": [],
+    "risk_score": 4.79,
+    "rollback_complexity": "LOW",
+    "testing_recommendations": [
+      "Standard testing procedures sufficient"
+    ]
+  },
+  "scenario_description": "Scaling simulation over 24h",
+  "simulation_duration_seconds": "<VOLATILE>",
+  "simulation_id": "<VOLATILE>",
+  "simulation_parameters": {
+    "changes": {
+      "deployment": "api",
+      "namespace": "team-a",
+      "replicas": 5
+    },
+    "duration": "<VOLATILE>",
+    "load_profile": "current",
+    "risk_tolerance": "moderate",
+    "scenario_type": "scaling",
+    "scope": {
+      "clusters": [
+        "current"
+      ],
+      "components": [
+        "all"
+      ],
+      "namespaces": [
+        "all"
+      ]
+    }
+  },
+  "simulation_quality": {
+    "assumptions": [
+      "Using real-time Prometheus metrics from cluster",
+      "Linear scaling relationships assumed for resource consumption",
+      "Historical patterns representative of future behavior",
+      "No external dependencies or constraints considered"
+    ],
+    "collection_warnings": [
+      "team-a: FakeApi has no canned method 'list_namespaced_resource_quota' - add it to the case",
+      "baseline collection failed: '_NS' object is not iterable"
+    ],
+    "data_completeness": 0.0,
+    "data_source": "prometheus",
+    "heuristic_confidence": 0.75,
+    "limitations": [
+      "Analysis based on 10 real Prometheus data points",
+      "Metrics collected: cpu_utilization, memory_utilization, response_times, error_rates, throughput, pipeline_durations",
+      "Analysis covers 0 namespaces and 0 nodes",
+      "Incomplete baseline data may affect simulation quality",
+      "Baseline collection failed for: team-a: FakeApi has no canned method 'list_namespaced_resource_quota' - add it to the case",
+      "Baseline collection failed for: baseline collection failed: '_NS' object is not iterable"
+    ],
+    "metrics_collected": {
+      "cpu_utilization": 2,
+      "error_rates": 2,
+      "memory_utilization": 2,
+      "pipeline_durations": "<VOLATILE>",
+      "response_times": "<VOLATILE>",
+      "throughput": 2
+    },
+    "namespaces_analyzed": 0,
+    "nodes_analyzed": 0,
+    "overall_quality": 0.38,
+    "total_data_points": 10
+  },
+  "timestamp": "<VOLATILE>"
+}

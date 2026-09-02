@@ -1,0 +1,3 @@
+I0101 00:00:01.000000       1 controller.go:42] KLOG_LOG_FIXTURE controller started
+W0101 00:00:02.000000       1 controller.go:55] KLOG_LOG_FIXTURE resource pending reconciliation
+E0101 00:00:03.000000       1 controller.go:67] KLOG_LOG_FIXTURE reconciliation failed with error

@@ -1,0 +1,103 @@
+{
+  "metadata": {
+    "analysis_parameters": {
+      "focus_areas": [
+        "errors",
+        "warnings",
+        "performance"
+      ],
+      "max_context_tokens": 10000,
+      "summary_level": "detailed",
+      "time_segments": "<VOLATILE>"
+    },
+    "container_info": {
+      "jsonlines.log": 3,
+      "klog.log": 3,
+      "plain.log": 5
+    },
+    "namespace": "ignored",
+    "pod_name": "*.log",
+    "processing_metrics": {
+      "estimated_tokens_used": 230,
+      "patterns_extracted": 4,
+      "processing_time_seconds": "<VOLATILE>",
+      "token_efficiency": "97.7% unused",
+      "total_log_lines": 11
+    }
+  },
+  "patterns": {
+    "errors": [
+      {
+        "content": "KLOG_LOG_FIXTURE reconciliation failed with error",
+        "line_number": 6,
+        "matched_text": "with error",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      },
+      {
+        "content": "<TS>Z ERROR PLAIN_LOG_FIXTURE connection refused to database",
+        "line_number": 8,
+        "matched_text": "PLAIN_LOG_FIXTURE connection refused to database",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      },
+      {
+        "content": "<TS>Z ERROR PLAIN_LOG_FIXTURE connection still failing after retry",
+        "line_number": 10,
+        "matched_text": "PLAIN_LOG_FIXTURE connection still failing after retry",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      }
+    ],
+    "warnings": [
+      {
+        "content": "<TS>Z WARN PLAIN_LOG_FIXTURE retry attempt in progress",
+        "line_number": 9,
+        "matched_text": "PLAIN_LOG_FIXTURE retry attempt in progress",
+        "occurrence_count": 1,
+        "severity": "medium",
+        "timestamp": "<VOLATILE>"
+      }
+    ]
+  },
+  "representative_samples": {},
+  "summary": {
+    "critical_issues": [],
+    "key_findings": [
+      {
+        "category": "errors",
+        "count": 3,
+        "sample_messages": [
+          "KLOG_LOG_FIXTURE reconciliation failed with error",
+          "<TS>Z ERROR PLAIN_LOG_FIXTURE connection refused to database",
+          "<TS>Z ERROR PLAIN_LOG_FIXTURE connection still failing after retry"
+        ]
+      },
+      {
+        "category": "warnings",
+        "count": 1,
+        "sample_messages": [
+          "<TS>Z WARN PLAIN_LOG_FIXTURE retry attempt in progress"
+        ]
+      }
+    ],
+    "overview": {
+      "critical_categories": [],
+      "error_count": 3,
+      "performance_issues": 0,
+      "total_issues_found": 4,
+      "warning_count": 1
+    },
+    "pattern_counts": {
+      "errors": 3,
+      "performance": 0,
+      "warnings": 1
+    },
+    "recommendations": [],
+    "timeline_analysis": "<VOLATILE>"
+  },
+  "time_segments": "<VOLATILE>"
+}

@@ -1,0 +1,8 @@
+Pharos MCP Server
+Copyright 2026 Red Hat, Inc.
+
+This project is derived from lumino-mcp-server
+(https://github.com/spre-sre/lumino-mcp-server), licensed under the
+Apache License, Version 2.0. Pharos extends it with multi-cluster
+source dispatch, streamable HTTP transport, profiles, and OTel support,
+and is maintained as a separate project.

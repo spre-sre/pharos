@@ -1,0 +1,101 @@
+{
+  "applied_filters": {
+    "cutoff_time": "<VOLATILE>",
+    "time_period": "<VOLATILE>"
+  },
+  "classification_metadata": {
+    "category_distribution": {
+      "CONFIGURATION": 0,
+      "FAILURE": 2,
+      "HEALTH": 0,
+      "IMAGE": 0,
+      "LIFECYCLE": 0,
+      "NETWORKING": 0,
+      "OTHER": 0,
+      "RESOURCE": 0,
+      "SCALING": 0,
+      "SCHEDULING": 0,
+      "SECURITY": 0,
+      "STORAGE": 0
+    },
+    "severity_distribution": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "LOW": 0,
+      "MEDIUM": 0
+    }
+  },
+  "events": [
+    {
+      "category": "FAILURE",
+      "event_string": "[<TS>] Warning: BackOff - Back-off restarting failed container (Object: Pod/p)",
+      "relevance_score": 1.2,
+      "severity": "HIGH",
+      "timestamp": "<VOLATILE>",
+      "token_estimate": 33
+    },
+    {
+      "category": "FAILURE",
+      "event_string": "[<TS>] Warning: FailedScheduling - 0/3 nodes are available (Object: Pod/api-2)",
+      "relevance_score": 1.2,
+      "severity": "HIGH",
+      "timestamp": "<VOLATILE>",
+      "token_estimate": 33
+    }
+  ],
+  "insights": [
+    "High severity events make up 100% of total events",
+    "FAILURE category dominates with 2 events",
+    "Events clustered in short time window - potential incident burst"
+  ],
+  "namespace": "team-a",
+  "processed_events": 2,
+  "recommendations": [
+    "UNCHARACTERISED: 2 high-or-critical severity event(s) matched no known remediation rule"
+  ],
+  "smart_features": {
+    "classification_applied": true,
+    "context_overflow_prevention": true,
+    "focus_areas": [
+      "errors",
+      "warnings",
+      "failures"
+    ],
+    "intelligent_defaults": "6h",
+    "smart_sampling": true
+  },
+  "strategy_used": "smart_summary",
+  "summary": {
+    "category_breakdown": {
+      "FAILURE": 2
+    },
+    "critical_events": 0,
+    "focus_area_coverage": {
+      "errors": {
+        "percentage": 100.0,
+        "relevant_events": 2
+      },
+      "failures": {
+        "percentage": 100.0,
+        "relevant_events": 2
+      },
+      "warnings": {
+        "percentage": 0.0,
+        "relevant_events": 0
+      }
+    },
+    "high_severity_events": 2,
+    "severity_breakdown": {
+      "HIGH": 2
+    },
+    "time_analysis": "<VOLATILE>",
+    "total_events": 2
+  },
+  "token_usage": {
+    "events_tokens": 66,
+    "metadata_tokens": 200,
+    "summary_tokens": 42,
+    "total_estimated": 308
+  },
+  "total_events": 2
+}

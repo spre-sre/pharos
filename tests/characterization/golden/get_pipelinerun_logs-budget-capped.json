@@ -1,0 +1,13 @@
+{
+  "_metadata": {
+    "adaptive_mode": true,
+    "pods_processed": 1,
+    "pods_skipped": 0,
+    "pods_truncated": 1,
+    "processing_strategy": "Pipeline size: 1 pods -> adaptive batching",
+    "token_budget_max": 900,
+    "token_budget_used": "91.7%",
+    "total_pods_found": 1
+  },
+  "build-run-2-build-pod": "<TS>Z INFO starting server\n<TS>Z ERROR connection refused to db:5432\n<TS>Z WARN retrying in 5s\n<TS>Z ERROR connection refused to db:5432\n<TS>Z FATAL giving up after 2 retries\n<TS>Z INFO starting server\n<TS>Z ERROR connection refused to db:5432\n<TS>Z WARN retrying in 5s\n<TS>Z ERROR connection refused to db:5432\n<TS>Z FATAL giving up after 2 retries\n<TS>Z INFO starting server\n<TS>Z ERROR connection refused to db:5432\n<TS>Z WARN retrying in 5s\n<TS>Z ERROR connection refused to db:5432\n<TS>Z FATAL giving up after 2 retries\n<TS>Z INFO starting server\n<TS>Z ERROR connection refused to db:5432\n<TS>Z WARN retrying in 5s\n<TS>Z ERROR connection refused to db:5432\n<TS>Z FATAL giving up after 2 retries\n<TS>Z INFO starting server\n<TS>Z ERROR connection refused to db:5432\n<TS>Z WARN retrying in 5s\n<TS>Z ERROR connection refused to db:5432\n<TS>Z FATAL giving up after 2 retries\n<TS>Z INFO starting server\n<TS>Z ERROR connection refused to db:5432\n<TS>Z WARN retrying in 5s\n<TS>Z ERROR connection refused to db:5432\n<TS>Z FATAL giving up after 2 retries\n<TS>Z INFO starting server\n<TS>Z ERROR connection refused to db:5432\n<TS>Z WARN retrying in 5s\n<TS>Z ERROR connection refused to db:5432\n<TS>Z FATAL giving up after 2 retries\n<TS>Z INFO starting server\n<TS>Z ERROR connection refused to db:5432\n<TS>Z WARN retrying in 5s\n\n[... TRUNCATED: 833 tokens exceeded budget of 720 tokens for pod build-run-2-build-pod ...]"
+}

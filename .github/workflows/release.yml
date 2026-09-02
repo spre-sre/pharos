@@ -1,0 +1,61 @@
+name: Create GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          # Extract changelog section for this version
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          CHANGELOG=$(awk "/## \[${VERSION}\]/,/## \[/" CHANGELOG.md | head -n -1)
+          if [ -z "$CHANGELOG" ]; then
+            # If no next version found, get everything after the version header
+            CHANGELOG=$(awk "/## \[${VERSION}\]/,0" CHANGELOG.md)
+          fi
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # TODO: update the README link below when the new remote is known (R2b — TBD-NEW-REMOTE)
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Pharos MCP Server v${{ steps.version.outputs.VERSION }}
+          body: |
+            # Pharos MCP Server v${{ steps.version.outputs.VERSION }}
+
+            ${{ steps.changelog.outputs.CHANGELOG }}
+
+            ---
+
+            ## Container Image
+
+            ```bash
+            docker pull quay.io/geored/pharos:${{ steps.version.outputs.VERSION }}
+            ```
+
+            ## Installation
+
+            See [README.md](https://TBD-NEW-REMOTE#readme) for installation and configuration instructions.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

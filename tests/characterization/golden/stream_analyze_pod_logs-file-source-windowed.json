@@ -1,0 +1,148 @@
+{
+  "chunks": [
+    {
+      "chunk_id": "<VOLATILE>",
+      "chunk_summary": {
+        "critical_issues": 0,
+        "dominant_category": "errors",
+        "error_count": 3,
+        "total_issues": 4,
+        "warning_count": 1
+      },
+      "lines_processed": 10,
+      "new_issues": [
+        {
+          "category": "errors",
+          "pattern": {
+            "content": "KLOG_LOG_FIXTURE reconciliation failed with error",
+            "line_number": 5,
+            "matched_text": "with error",
+            "occurrence_count": 1,
+            "severity": "high",
+            "timestamp": "<VOLATILE>"
+          },
+          "severity": "high"
+        },
+        {
+          "category": "errors",
+          "pattern": {
+            "content": "<TS>Z ERROR PLAIN_LOG_FIXTURE connection refused to database",
+            "line_number": 7,
+            "matched_text": "PLAIN_LOG_FIXTURE connection refused to database",
+            "occurrence_count": 1,
+            "severity": "high",
+            "timestamp": "<VOLATILE>"
+          },
+          "severity": "high"
+        },
+        {
+          "category": "errors",
+          "pattern": {
+            "content": "<TS>Z ERROR PLAIN_LOG_FIXTURE connection still failing after retry",
+            "line_number": 9,
+            "matched_text": "PLAIN_LOG_FIXTURE connection still failing after retry",
+            "occurrence_count": 1,
+            "severity": "high",
+            "timestamp": "<VOLATILE>"
+          },
+          "severity": "high"
+        },
+        {
+          "category": "warnings",
+          "pattern": {
+            "content": "<TS>Z WARN PLAIN_LOG_FIXTURE retry attempt in progress",
+            "line_number": 8,
+            "matched_text": "PLAIN_LOG_FIXTURE retry attempt in progress",
+            "occurrence_count": 1,
+            "severity": "medium",
+            "timestamp": "<VOLATILE>"
+          },
+          "severity": "medium"
+        }
+      ],
+      "patterns": {
+        "errors": [
+          {
+            "content": "KLOG_LOG_FIXTURE reconciliation failed with error",
+            "line_number": 5,
+            "matched_text": "with error",
+            "occurrence_count": 1,
+            "severity": "high",
+            "timestamp": "<VOLATILE>"
+          },
+          {
+            "content": "<TS>Z ERROR PLAIN_LOG_FIXTURE connection refused to database",
+            "line_number": 7,
+            "matched_text": "PLAIN_LOG_FIXTURE connection refused to database",
+            "occurrence_count": 1,
+            "severity": "high",
+            "timestamp": "<VOLATILE>"
+          },
+          {
+            "content": "<TS>Z ERROR PLAIN_LOG_FIXTURE connection still failing after retry",
+            "line_number": 9,
+            "matched_text": "PLAIN_LOG_FIXTURE connection still failing after retry",
+            "occurrence_count": 1,
+            "severity": "high",
+            "timestamp": "<VOLATILE>"
+          }
+        ],
+        "warnings": [
+          {
+            "content": "<TS>Z WARN PLAIN_LOG_FIXTURE retry attempt in progress",
+            "line_number": 8,
+            "matched_text": "PLAIN_LOG_FIXTURE retry attempt in progress",
+            "occurrence_count": 1,
+            "severity": "medium",
+            "timestamp": "<VOLATILE>"
+          }
+        ]
+      },
+      "timestamp": "<VOLATILE>",
+      "total_lines_processed": 10
+    }
+  ],
+  "metadata": {
+    "analysis_parameters": {
+      "analysis_mode": "errors_and_warnings",
+      "chunk_size": 5000,
+      "follow": false,
+      "max_chunks": 50
+    },
+    "container_info": {
+      "jsonlines.log": 2,
+      "klog.log": 3,
+      "plain.log": 5
+    },
+    "namespace": "ignored",
+    "pod_name": "*.log",
+    "processing_metrics": {
+      "average_chunk_processing_time": "<VOLATILE>",
+      "chunks_processed": 1,
+      "lines_processed": 10,
+      "processing_time_seconds": "<VOLATILE>",
+      "total_log_lines": 10
+    }
+  },
+  "overall_summary": {
+    "analysis_timespan": "<VOLATILE>",
+    "most_common_errors": {
+      "PLAIN_LOG_FIXTURE connection refused to database": 1,
+      "PLAIN_LOG_FIXTURE connection still failing after retry": 1,
+      "with error": 1
+    },
+    "pattern_categories": [
+      "errors",
+      "warnings"
+    ],
+    "total_chunks_processed": 1,
+    "total_issues_found": 4,
+    "total_lines_analyzed": 10
+  },
+  "recommendations": [
+    "4 issue(s) detected but no critical patterns identified. Review logs for details."
+  ],
+  "trending_patterns": {
+    "trending": "insufficient_data"
+  }
+}

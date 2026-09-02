@@ -1,0 +1,310 @@
+/* ==========================================================================
+   Components
+   Reusable UI component styles for the Lumino website.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Cards
+   -------------------------------------------------------------------------- */
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  backdrop-filter: blur(16px);
+  transition: all var(--transition-base);
+}
+
+.card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow-cyan);
+  text-decoration: none;
+}
+
+a.card {
+  text-decoration: none;
+  color: inherit;
+}
+
+.card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-cyan-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-md);
+}
+
+.card-title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.card-description {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* --------------------------------------------------------------------------
+   2. Buttons
+   -------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  border: none;
+}
+
+.btn:hover {
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--accent-cyan);
+  color: var(--bg-deepest);
+  box-shadow: var(--shadow-glow-cyan);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.15);
+  box-shadow: var(--shadow-glow-cyan), 0 0 24px rgba(0, 255, 255, 0.25);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.btn-secondary:hover {
+  background: var(--accent-cyan-dim);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: var(--text-xs);
+}
+
+.btn-lg {
+  padding: 0.875rem 1.75rem;
+  font-size: var(--text-base);
+}
+
+/* --------------------------------------------------------------------------
+   3. Badges
+   -------------------------------------------------------------------------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+
+.badge-cyan {
+  background: var(--accent-cyan-dim);
+  color: var(--accent-cyan);
+}
+
+.badge-green {
+  background: var(--accent-green-dim);
+  color: var(--accent-green);
+}
+
+.badge-purple {
+  background: var(--accent-purple-dim);
+  color: var(--accent-purple);
+}
+
+.badge-amber {
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber);
+}
+
+/* --------------------------------------------------------------------------
+   4. Code Blocks
+   -------------------------------------------------------------------------- */
+
+.code-block {
+  position: relative;
+  background: var(--bg-deepest);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.code-block-body {
+  padding: 1rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.code-copy-btn:hover {
+  color: var(--text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   5. Tabs
+   -------------------------------------------------------------------------- */
+
+.tab-list {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 0;
+  overflow-x: auto;
+}
+
+.tab-button {
+  padding: 0.75rem 1.25rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.tab-button.active,
+.tab-button[aria-selected="true"] {
+  color: var(--accent-cyan);
+  border-bottom-color: var(--accent-cyan);
+}
+
+.tab-panel {
+  padding: var(--space-xl) 0;
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   6. Stats Row
+   -------------------------------------------------------------------------- */
+
+.stats-row {
+  display: flex;
+  gap: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+}
+
+.stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* --------------------------------------------------------------------------
+   7. Tool List
+   -------------------------------------------------------------------------- */
+
+.tool-list {
+  margin-top: var(--space-md);
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.tool-item {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: var(--text-sm);
+}
+
+.tool-name {
+  font-family: var(--font-mono);
+  color: var(--accent-green);
+  font-weight: 500;
+}
+
+.tool-desc {
+  color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   8. Expandable
+   -------------------------------------------------------------------------- */
+
+.expandable-trigger {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--accent-cyan);
+  font-size: var(--text-sm);
+  background: none;
+  border: none;
+  padding: var(--space-sm) 0;
+}
+
+.expandable-content {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height var(--transition-slow);
+}
+
+.expandable-content.open {
+  max-height: 1000px;
+}

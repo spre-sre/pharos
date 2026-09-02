@@ -1,0 +1,43 @@
+{
+  "conservative_metadata": {
+    "coverage_ratio": "2/2",
+    "optimized_for": "large_namespaces",
+    "sampling_strategy": "smart",
+    "token_budget": "<45,000 tokens (conservative)"
+  },
+  "critical_issues": [
+    "Pod api-2: ERROR: connection refused...",
+    "Pod api-1: ERROR: connection refused..."
+  ],
+  "overview": {
+    "analysis_strategy": "conservative sampling of 2/2 pods",
+    "critical_issues_found": 2,
+    "namespace": "team-a",
+    "pods_analyzed": 2,
+    "pods_with_issues": 2,
+    "total_pods": 2
+  },
+  "pod_findings": {
+    "api-1": {
+      "has_errors": true,
+      "has_warnings": false,
+      "log_lines": 2,
+      "patterns_found": 1,
+      "status": "Running",
+      "top_issue": "ERROR: connection refused..."
+    },
+    "api-2": {
+      "has_errors": true,
+      "has_warnings": false,
+      "log_lines": 2,
+      "patterns_found": 1,
+      "status": "Pending",
+      "top_issue": "ERROR: connection refused..."
+    }
+  },
+  "recommendations": [
+    "Found 2 issues requiring investigation",
+    "Pod api-2: ERROR: connection refused...",
+    "Pod api-1: ERROR: connection refused..."
+  ]
+}

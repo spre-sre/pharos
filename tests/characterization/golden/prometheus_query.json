@@ -1,0 +1,48 @@
+{
+  "data": [
+    {
+      "formatted_value": "1.000",
+      "metric": {
+        "__name__": "up",
+        "instance": "node-1",
+        "job": "kubelet"
+      },
+      "timestamp": "<VOLATILE>",
+      "value": "1"
+    },
+    {
+      "formatted_value": "0.000",
+      "metric": {
+        "__name__": "up",
+        "instance": "node-2",
+        "job": "kubelet"
+      },
+      "timestamp": "<VOLATILE>",
+      "value": "0"
+    }
+  ],
+  "endpoint_type": "prometheus",
+  "errors": [],
+  "execution_time": "<VOLATILE>",
+  "metadata": {
+    "format": "json",
+    "limit": null,
+    "namespace_filter": null,
+    "query_type": "instant"
+  },
+  "parameters": {
+    "query": "up",
+    "timeout": "<VOLATILE>"
+  },
+  "prometheus_endpoint": "http://fake-prometheus:9090",
+  "query_executed": "up",
+  "query_type": "instant",
+  "result_count": 2,
+  "result_type": "vector",
+  "status": "success",
+  "suggestions": [
+    "Top 10 results: topk(10, up)",
+    "Historical data: up over time range"
+  ],
+  "summary": "Found 2 metric series. Metric types: up."
+}

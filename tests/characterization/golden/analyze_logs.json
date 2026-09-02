@@ -1,0 +1,24 @@
+{
+  "categorized_errors": {
+    "network": 35
+  },
+  "error_count": 15,
+  "error_patterns": [
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432",
+    "<TS>Z ERROR connection refused to db:5432"
+  ],
+  "summary": "Log contains 50 lines.\nTime span: <TS> to <TS>\nFound 15 potential errors.\nError categories:\n  - Network: 35\n\nExample errors:\n  1. <TS>Z ERROR connection refused to db:5432\n  2. <TS>Z ERROR connection refused to db:5432\n  3. <TS>Z ERROR connection refused to db:5432\n  ... and 12 more"
+}

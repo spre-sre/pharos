@@ -1,0 +1,90 @@
+name: konflux
+runbooks:
+  task_bundle_resolution:
+    title: Tekton Task Bundle Resolution Failure
+    steps:
+      - "Check if the task bundle image exists: skopeo inspect docker://quay.io/konflux-ci/tekton-catalog/task-<name>:<version>"
+      - Verify the task reference in .tekton/ pipeline YAML matches an available bundle
+      - Check if the task version was recently deprecated or removed
+      - If using a pinned digest, verify it hasn't been garbage collected from the registry
+      - Check Tekton controller logs for bundle fetch errors
+    estimated_time: 10-15 minutes
+    severity: HIGH
+    references:
+      - https://konflux.pages.redhat.com/docs/users/troubleshooting/builds.html
+  push_snapshot_failure:
+    title: Push Snapshot / OCI Artifact Failure
+    steps:
+      - Check if the .src source container tag exists (build-source-image may be skipped)
+      - Verify the service account has push permissions to the quay.io image repo
+      - Check quay.io organization quota and storage limits
+      - Verify the image tag format matches what oras resolve expects
+      - If 'unauthorized' error, check robot account credentials in the push secret
+    estimated_time: 10-20 minutes
+    severity: HIGH
+    references:
+      - https://konflux.pages.redhat.com/docs/users/troubleshooting/releases.html
+  trusted_artifact_failure:
+    title: Trusted Artifact Push/Pull Failure
+    steps:
+      - Verify the build service account has push access to OCI storage
+      - Check if the quay.io repo exists for the component
+      - For fork PRs, verify the .tekton/ config uses the correct service account
+      - Check quay.io rate limits or quota restrictions
+    estimated_time: 10-15 minutes
+    severity: HIGH
+    references:
+      - https://konflux.pages.redhat.com/docs/users/troubleshooting/builds.html
+  registry_auth_failure:
+    title: Container Registry Authentication Failure
+    steps:
+      - Check the pull/push secret referenced by the service account
+      - Verify robot account credentials in quay.io are not expired
+      - Check if the image repository visibility matches expectations (public vs private)
+      - Verify the pac-gitauth secret is correctly configured
+      - For cross-namespace releases, check the RoleBinding for registry access
+    estimated_time: 10-15 minutes
+    severity: HIGH
+    references:
+      - https://konflux.pages.redhat.com/docs/users/troubleshooting/builds.html
+  pyxis_registration_failure:
+    title: Pyxis Image Registration Failure
+    steps:
+      - Check create-pyxis-image task logs for specific API errors
+      - Verify Pyxis API credentials are configured in the release plan
+      - Check if the image digest format is valid for Pyxis
+      - Verify network connectivity to the Pyxis API endpoint
+    estimated_time: 15-20 minutes
+    severity: MEDIUM
+    references:
+      - https://gitlab.cee.redhat.com/konflux/docs/sop/-/blob/main/release/release-service.md
+  pipeline_timeout:
+    title: Pipeline Timeout or Long-Running Build
+    steps:
+      - Check which task is taking the longest (usually buildah or prefetch-dependencies)
+      - Verify Kueue workload admission - check if PLR was pending in queue
+      - Check if the build node has sufficient CPU/memory available
+      - For multi-platform builds, check if remote builder machines are available
+      - Review pipeline timeout setting (default 2h for builds)
+    estimated_time: 15-25 minutes
+    severity: MEDIUM
+    references:
+      - https://gitlab.cee.redhat.com/konflux/docs/sop/-/blob/main/infra/queue/queue.md
+labels:
+  # PAC/AppStudio label-key lists extracted from matches_trace_identifier()
+  # (resource_topology.py:211-245).  Faithfulness test against function-local
+  # literals lands in Task 5 when these become importable module constants.
+  trace_commit:
+    - pipelinesascode.tekton.dev/sha
+    - pac.test.appstudio.openshift.io/sha
+    - tekton.dev/git-commit
+    - git.commit
+    - build.appstudio.redhat.com/commit_sha
+  trace_pr:
+    - pac.test.appstudio.openshift.io/pull-request
+    - pipelinesascode.tekton.dev/pull-request
+    - pull-request
+    - pr
+  trace_pr_fallback:
+    - pipelinesascode.tekton.dev/pull-request
+    - build.appstudio.openshift.io/pull_request_number

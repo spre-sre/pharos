@@ -1,0 +1,20 @@
+[
+  {
+    "container_states": [],
+    "creation_timestamp": "<VOLATILE>",
+    "ip": "10.0.0.1",
+    "name": "api-1",
+    "node_name": "node-1",
+    "restart_count": 0,
+    "status": "Running"
+  },
+  {
+    "container_states": [],
+    "creation_timestamp": "<VOLATILE>",
+    "ip": "10.0.0.1",
+    "name": "api-2",
+    "node_name": "node-1",
+    "restart_count": 7,
+    "status": "Pending"
+  }
+]

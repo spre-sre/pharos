@@ -1,0 +1,31 @@
+{
+  "certificate_authorities": [],
+  "certificate_details": [],
+  "coverage": {
+    "denied": 0,
+    "discovered": 1,
+    "requested": 0,
+    "requested_mode": "all",
+    "scanned": 1,
+    "skipped": 0,
+    "system_namespaces_added": 5,
+    "system_namespaces_denied": 0,
+    "unit": "namespaces",
+    "verdict": "complete"
+  },
+  "expiration_timeline": "<VOLATILE>",
+  "renewal_recommendations": [],
+  "scan_summary": {
+    "critical_certificates": 0,
+    "expired_certificates": 0,
+    "healthy_certificates": 0,
+    "namespaces_scanned": 1,
+    "namespaces_skipped_rbac": 0,
+    "namespaces_total": 1,
+    "scan_timestamp": "<VOLATILE>",
+    "total_certificates": 0,
+    "warning_certificates": 0
+  },
+  "security_findings": [],
+  "system_certificates": []
+}

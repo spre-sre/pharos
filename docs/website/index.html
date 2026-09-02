@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUMINO - AI-Powered Observability for Kubernetes</title>
+  <meta name="description" content="Open-source MCP server empowering SREs with intelligent observability, predictive analytics, and AI-driven automation for Kubernetes, OpenShift, and Tekton.">
+  <meta name="keywords" content="kubernetes, openshift, tekton, mcp, observability, sre, devops, ai, monitoring">
+  <meta property="og:title" content="Pharos MCP Server">
+  <meta property="og:description" content="AI-Powered Observability for Kubernetes with 42+ tools for SREs and DevOps teams.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#0a0e17">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/sections.css">
+  <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-to-content">Skip to content</a>
+
+  <!-- ============ HEADER ============ -->
+  <header class="sticky-header" role="banner">
+    <div class="header-inner">
+      <a href="#" class="logo" aria-label="LUMINO Home">
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <rect width="32" height="32" rx="6" fill="#0a0e17"/>
+          <path d="M8 6v20h12v-4H12V6H8z" fill="#00e5ff"/>
+          <circle cx="22" cy="22" r="3" fill="#00e676"/>
+          <circle cx="8" cy="6" r="1.5" fill="#00e5ff" opacity="0.5"/>
+        </svg>
+        <span class="logo-text">LUMINO</span>
+      </a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#architecture" class="nav-link">Architecture</a>
+        <a href="#getting-started" class="nav-link">Get Started</a>
+        <a href="#integrations" class="nav-link">Integrations</a>
+        <a href="#documentation" class="nav-link">Docs</a>
+        <a href="#community" class="nav-link">Community</a>
+      </nav>
+      <div class="header-actions">
+        <a href="https://TBD-NEW-REMOTE" class="btn btn-ghost btn-sm" target="_blank" rel="noopener noreferrer" aria-label="View on GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span class="btn-label-desktop">GitHub</span>
+        </a>
+        <a href="#getting-started" class="btn btn-primary btn-sm">Get Started</a>
+      </div>
+      <button class="mobile-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile nav overlay -->
+  <div class="mobile-nav-overlay" role="dialog" aria-label="Navigation menu">
+    <nav aria-label="Mobile navigation">
+      <a href="#features" class="nav-link">Features</a>
+      <a href="#architecture" class="nav-link">Architecture</a>
+      <a href="#getting-started" class="nav-link">Get Started</a>
+      <a href="#integrations" class="nav-link">Integrations</a>
+      <a href="#documentation" class="nav-link">Docs</a>
+      <a href="#community" class="nav-link">Community</a>
+    </nav>
+  </div>
+
+  <main id="main-content">
+    <!-- ============ HERO ============ -->
+    <section class="hero" id="hero">
+      <canvas id="hero-canvas" aria-hidden="true"></canvas>
+      <div class="container hero-inner">
+        <div class="hero-content">
+          <span class="badge badge-cyan hero-badge">v0.9.3 &mdash; Open Source</span>
+          <h1 class="hero-title">
+            <span class="gradient-text">AI-Powered Observability</span> for Kubernetes
+          </h1>
+          <p class="hero-subtitle">
+            An open-source MCP server empowering SREs with intelligent observability,
+            predictive analytics, and AI-driven automation across Kubernetes, OpenShift, and Tekton.
+          </p>
+          <div class="hero-actions">
+            <a href="#getting-started" class="btn btn-primary btn-lg">Get Started</a>
+            <a href="https://TBD-NEW-REMOTE" class="btn btn-secondary btn-lg" target="_blank" rel="noopener noreferrer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="margin-right:6px"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              View on GitHub
+            </a>
+          </div>
+          <div class="stats-row hero-stats">
+            <div class="stat-item">
+              <div class="stat-value">42+</div>
+              <div class="stat-label">Tools</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">12</div>
+              <div class="stat-label">Categories</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">4</div>
+              <div class="stat-label">AI Clients</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-terminal">
+          <div class="terminal">
+            <div class="terminal-header">
+              <span class="terminal-dot" style="background:#ff5f57"></span>
+              <span class="terminal-dot" style="background:#febc2e"></span>
+              <span class="terminal-dot" style="background:#28c840"></span>
+              <span class="terminal-title">claude &mdash; lumino MCP</span>
+            </div>
+            <div class="terminal-body" id="terminal-body">
+              <div class="terminal-line">
+                <span class="terminal-prompt">&gt; </span>
+                <span class="terminal-command" id="terminal-command"></span>
+                <span class="terminal-cursor" id="terminal-cursor"></span>
+              </div>
+              <div class="terminal-output" id="terminal-output"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURES ============ -->
+    <section class="section features" id="features">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2 class="section-title">Powerful Capabilities</h2>
+          <p class="section-subtitle">42+ specialized tools organized into 12 categories, designed for real-world SRE workflows.</p>
+        </div>
+        <div class="grid grid-3">
+          <!-- Kubernetes Core -->
+          <div class="card feature-card reveal">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            </div>
+            <h3 class="card-title">Kubernetes Core</h3>
+            <span class="badge badge-cyan tool-count">4 tools</span>
+            <p class="card-description">Namespace and pod management, flexible resource querying, and label-based search across clusters.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">list_namespaces</span> <span class="tool-desc">&mdash; List all namespaces</span></div>
+              <div class="tool-item"><span class="tool-name">list_pods_in_namespace</span> <span class="tool-desc">&mdash; List pods with status</span></div>
+              <div class="tool-item"><span class="tool-name">get_kubernetes_resource</span> <span class="tool-desc">&mdash; Get any resource flexibly</span></div>
+              <div class="tool-item"><span class="tool-name">search_resources_by_labels</span> <span class="tool-desc">&mdash; Label-based search</span></div>
+            </div>
+          </div>
+
+          <!-- Tekton Pipelines -->
+          <div class="card feature-card reveal reveal-delay-1">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </div>
+            <h3 class="card-title">Tekton Pipelines</h3>
+            <span class="badge badge-green tool-count">6 tools</span>
+            <p class="card-description">Pipeline and task run monitoring, detailed log retrieval, cross-cluster tracing, and performance baselining.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">list_pipelineruns</span> <span class="tool-desc">&mdash; List PipelineRuns with status</span></div>
+              <div class="tool-item"><span class="tool-name">list_taskruns</span> <span class="tool-desc">&mdash; List TaskRuns by pipeline</span></div>
+              <div class="tool-item"><span class="tool-name">get_pipelinerun_logs</span> <span class="tool-desc">&mdash; Retrieve pipeline logs</span></div>
+              <div class="tool-item"><span class="tool-name">list_recent_pipeline_runs</span> <span class="tool-desc">&mdash; Recent runs cluster-wide</span></div>
+              <div class="tool-item"><span class="tool-name">find_pipeline</span> <span class="tool-desc">&mdash; Find by pattern matching</span></div>
+              <div class="tool-item"><span class="tool-name">get_tekton_pipeline_runs_status</span> <span class="tool-desc">&mdash; Cluster-wide status</span></div>
+            </div>
+          </div>
+
+          <!-- Log Analysis -->
+          <div class="card feature-card reveal reveal-delay-2">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <h3 class="card-title">Log Analysis</h3>
+            <span class="badge badge-green tool-count">6 tools</span>
+            <p class="card-description">Smart log summarization, streaming analysis, hybrid strategies, NLP semantic search, and anomaly detection.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">analyze_logs</span> <span class="tool-desc">&mdash; Extract error patterns</span></div>
+              <div class="tool-item"><span class="tool-name">smart_summarize_pod_logs</span> <span class="tool-desc">&mdash; Intelligent summarization</span></div>
+              <div class="tool-item"><span class="tool-name">stream_analyze_pod_logs</span> <span class="tool-desc">&mdash; Streaming for large logs</span></div>
+              <div class="tool-item"><span class="tool-name">analyze_pod_logs_hybrid</span> <span class="tool-desc">&mdash; Combined strategies</span></div>
+              <div class="tool-item"><span class="tool-name">detect_log_anomalies</span> <span class="tool-desc">&mdash; Anomaly detection</span></div>
+              <div class="tool-item"><span class="tool-name">semantic_log_search</span> <span class="tool-desc">&mdash; NLP-based search</span></div>
+            </div>
+          </div>
+
+          <!-- Event Analysis -->
+          <div class="card feature-card reveal">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <h3 class="card-title">Event Analysis</h3>
+            <span class="badge badge-purple tool-count">3 tools</span>
+            <p class="card-description">Smart event retrieval, progressive multi-level analysis, and ML-powered pattern detection.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">smart_get_namespace_events</span> <span class="tool-desc">&mdash; Smart retrieval</span></div>
+              <div class="tool-item"><span class="tool-name">progressive_event_analysis</span> <span class="tool-desc">&mdash; Multi-level analysis</span></div>
+              <div class="tool-item"><span class="tool-name">advanced_event_analytics</span> <span class="tool-desc">&mdash; ML pattern detection</span></div>
+            </div>
+          </div>
+
+          <!-- Failure Analysis -->
+          <div class="card feature-card reveal reveal-delay-1">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <h3 class="card-title">Failure Analysis &amp; RCA</h3>
+            <span class="badge badge-amber tool-count">2 tools</span>
+            <p class="card-description">Root cause analysis for failed pipelines and automated incident triage report generation.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">analyze_failed_pipeline</span> <span class="tool-desc">&mdash; Pipeline RCA</span></div>
+              <div class="tool-item"><span class="tool-name">automated_triage_rca_report_generator</span> <span class="tool-desc">&mdash; Incident reports</span></div>
+            </div>
+          </div>
+
+          <!-- Resource Monitoring -->
+          <div class="card feature-card reveal reveal-delay-2">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
+            <h3 class="card-title">Resource Monitoring</h3>
+            <span class="badge badge-cyan tool-count">4 tools</span>
+            <p class="card-description">Resource constraint detection, statistical anomaly detection, PromQL queries, and bottleneck forecasting.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">check_resource_constraints</span> <span class="tool-desc">&mdash; Detect resource issues</span></div>
+              <div class="tool-item"><span class="tool-name">detect_anomalies</span> <span class="tool-desc">&mdash; Statistical detection</span></div>
+              <div class="tool-item"><span class="tool-name">prometheus_query</span> <span class="tool-desc">&mdash; Execute PromQL</span></div>
+              <div class="tool-item"><span class="tool-name">resource_bottleneck_forecaster</span> <span class="tool-desc">&mdash; Predict exhaustion</span></div>
+            </div>
+          </div>
+
+          <!-- Namespace Investigation -->
+          <div class="card feature-card reveal">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            <h3 class="card-title">Namespace Investigation</h3>
+            <span class="badge badge-purple tool-count">2 tools</span>
+            <p class="card-description">Conservative health checks and adaptive investigation driven by natural language queries.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">conservative_namespace_overview</span> <span class="tool-desc">&mdash; Focused health check</span></div>
+              <div class="tool-item"><span class="tool-name">adaptive_namespace_investigation</span> <span class="tool-desc">&mdash; Dynamic investigation</span></div>
+            </div>
+          </div>
+
+          <!-- Certificate & Security -->
+          <div class="card feature-card reveal reveal-delay-1">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <h3 class="card-title">Certificate &amp; Security</h3>
+            <span class="badge badge-amber tool-count">2 tools</span>
+            <p class="card-description">TLS certificate investigation, cluster certificate health monitoring, and expiry alerting.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">investigate_tls_certificate_issues</span> <span class="tool-desc">&mdash; Find TLS problems</span></div>
+              <div class="tool-item"><span class="tool-name">check_cluster_certificate_health</span> <span class="tool-desc">&mdash; Expiry monitoring</span></div>
+            </div>
+          </div>
+
+          <!-- OpenShift -->
+          <div class="card feature-card reveal reveal-delay-2">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+            <h3 class="card-title">OpenShift Specific</h3>
+            <span class="badge badge-cyan tool-count">3 tools</span>
+            <p class="card-description">MachineConfigPool status, cluster operator health monitoring, and etcd log analysis.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">get_machine_config_pool_status</span> <span class="tool-desc">&mdash; MCP status</span></div>
+              <div class="tool-item"><span class="tool-name">get_openshift_cluster_operator_status</span> <span class="tool-desc">&mdash; Operator health</span></div>
+              <div class="tool-item"><span class="tool-name">get_etcd_logs</span> <span class="tool-desc">&mdash; etcd log analysis</span></div>
+            </div>
+          </div>
+
+          <!-- CI/CD Performance -->
+          <div class="card feature-card reveal">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <h3 class="card-title">CI/CD Performance</h3>
+            <span class="badge badge-green tool-count">2 tools</span>
+            <p class="card-description">Pipeline performance baselining with deviation detection and cross-cluster pipeline tracing.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">ci_cd_performance_baselining_tool</span> <span class="tool-desc">&mdash; Performance baselines</span></div>
+              <div class="tool-item"><span class="tool-name">pipeline_tracer</span> <span class="tool-desc">&mdash; Trace by commit/PR/image</span></div>
+            </div>
+          </div>
+
+          <!-- Topology & Prediction -->
+          <div class="card feature-card reveal reveal-delay-1">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><line x1="6" y1="9" x2="6" y2="21"/><path d="M9 6h6"/><path d="M6 21c0-3 6-3 6-6"/></svg>
+            </div>
+            <h3 class="card-title">Topology &amp; Prediction</h3>
+            <span class="badge badge-purple tool-count">3 tools</span>
+            <p class="card-description">Real-time system topology mapping, predictive log analysis, and training data management for ML models.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">live_system_topology_mapper</span> <span class="tool-desc">&mdash; Real-time topology</span></div>
+              <div class="tool-item"><span class="tool-name">predictive_log_analyzer</span> <span class="tool-desc">&mdash; Predict from logs</span></div>
+              <div class="tool-item"><span class="tool-name">manage_prediction_training_data</span> <span class="tool-desc">&mdash; ML training data</span></div>
+            </div>
+          </div>
+
+          <!-- Simulation -->
+          <div class="card feature-card reveal reveal-delay-2">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <h3 class="card-title">Simulation</h3>
+            <span class="badge badge-amber tool-count">1 tool</span>
+            <p class="card-description">Monte Carlo what-if scenario simulation for configuration changes with impact and risk assessment.</p>
+            <button class="expandable-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='false');this.nextElementSibling.classList.toggle('open')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              View tools
+            </button>
+            <div class="expandable-content tool-list">
+              <div class="tool-item"><span class="tool-name">what_if_scenario_simulator</span> <span class="tool-desc">&mdash; Simulate config changes</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ARCHITECTURE ============ -->
+    <section class="section architecture" id="architecture">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2 class="section-title">How It Works</h2>
+          <p class="section-subtitle">LUMINO bridges AI assistants and your Kubernetes infrastructure through the Model Context Protocol.</p>
+        </div>
+        <div class="arch-diagram reveal">
+          <!-- Layer 1: AI Assistants -->
+          <div class="arch-layer" style="border-color: var(--accent-cyan)">
+            <div class="arch-layer-title" style="color: var(--accent-cyan)">AI Assistant Layer</div>
+            <div class="arch-items">
+              <div class="arch-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--accent-cyan)" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                Claude Desktop
+              </div>
+              <div class="arch-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--accent-cyan)" aria-hidden="true"><path d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke="var(--accent-cyan)" fill="none" stroke-width="1.5"/></svg>
+                Claude Code CLI
+              </div>
+              <div class="arch-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--accent-green)" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Gemini CLI
+              </div>
+              <div class="arch-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-purple)" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+                Cursor IDE
+              </div>
+            </div>
+          </div>
+
+          <!-- Connector -->
+          <div class="arch-connector">
+            <svg width="24" height="40" viewBox="0 0 24 40" aria-hidden="true">
+              <line x1="12" y1="0" x2="12" y2="40" stroke="var(--accent-cyan)" stroke-width="2" stroke-dasharray="4 4">
+                <animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite"/>
+              </line>
+              <polygon points="6,32 12,40 18,32" fill="var(--accent-cyan)"/>
+            </svg>
+          </div>
+
+          <!-- Layer 2: LUMINO -->
+          <div class="arch-layer" style="border-color: var(--accent-green)">
+            <div class="arch-layer-title" style="color: var(--accent-green)">Pharos MCP Server</div>
+            <div class="arch-items">
+              <div class="arch-item">Log Analysis (6)</div>
+              <div class="arch-item">Tekton Pipelines (6)</div>
+              <div class="arch-item">Resource Monitoring (4)</div>
+              <div class="arch-item">K8s Core (4)</div>
+              <div class="arch-item">Event Analysis (3)</div>
+              <div class="arch-item">OpenShift (3)</div>
+              <div class="arch-item">Topology (3)</div>
+              <div class="arch-item">Security (2)</div>
+              <div class="arch-item">RCA (2)</div>
+              <div class="arch-item">CI/CD Perf (2)</div>
+              <div class="arch-item">Investigation (2)</div>
+              <div class="arch-item">Simulation (1)</div>
+            </div>
+          </div>
+
+          <!-- Connector -->
+          <div class="arch-connector">
+            <svg width="24" height="40" viewBox="0 0 24 40" aria-hidden="true">
+              <line x1="12" y1="0" x2="12" y2="40" stroke="var(--accent-green)" stroke-width="2" stroke-dasharray="4 4">
+                <animate attributeName="stroke-dashoffset" from="8" to="0" dur="1s" repeatCount="indefinite"/>
+              </line>
+              <polygon points="6,32 12,40 18,32" fill="var(--accent-green)"/>
+            </svg>
+          </div>
+
+          <!-- Layer 3: Infrastructure -->
+          <div class="arch-layer" style="border-color: var(--accent-purple)">
+            <div class="arch-layer-title" style="color: var(--accent-purple)">Kubernetes / OpenShift Cluster</div>
+            <div class="arch-items">
+              <div class="arch-item">Pods &amp; Services</div>
+              <div class="arch-item">Tekton Pipelines</div>
+              <div class="arch-item">Prometheus</div>
+              <div class="arch-item">Events &amp; Logs</div>
+              <div class="arch-item">ConfigMaps &amp; Secrets</div>
+              <div class="arch-item">Cluster Operators</div>
+              <div class="arch-item">etcd</div>
+              <div class="arch-item">Certificates</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Workflow steps -->
+        <div class="grid grid-5 workflow-steps reveal" style="margin-top: var(--space-3xl)">
+          <div class="workflow-step">
+            <div class="workflow-number">1</div>
+            <h4>User Query</h4>
+            <p>AI assistant receives natural language request</p>
+          </div>
+          <div class="workflow-step">
+            <div class="workflow-number">2</div>
+            <h4>MCP Translation</h4>
+            <p>Assistant converts query to appropriate tool calls</p>
+          </div>
+          <div class="workflow-step">
+            <div class="workflow-number">3</div>
+            <h4>LUMINO Processing</h4>
+            <p>Server executes Kubernetes and Prometheus operations</p>
+          </div>
+          <div class="workflow-step">
+            <div class="workflow-number">4</div>
+            <h4>Data Analysis</h4>
+            <p>ML and statistical algorithms process raw data</p>
+          </div>
+          <div class="workflow-step">
+            <div class="workflow-number">5</div>
+            <h4>AI Synthesis</h4>
+            <p>Results formatted into human-readable insights</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ GETTING STARTED ============ -->
+    <section class="section getting-started" id="getting-started">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2 class="section-title">Get Started</h2>
+          <p class="section-subtitle">Choose your preferred installation method and get up and running in minutes.</p>
+        </div>
+        <div class="tabs reveal" id="install-tabs">
+          <div class="tab-list" role="tablist" aria-label="Installation methods">
+            <button class="tab-button active" role="tab" aria-selected="true" aria-controls="tab-claude-code" id="tab-btn-claude-code" data-tab="tab-claude-code">
+              Claude Code CLI <span class="badge badge-green" style="margin-left:6px;font-size:0.65rem">Easiest</span>
+            </button>
+            <button class="tab-button" role="tab" aria-selected="false" aria-controls="tab-mcpm" id="tab-btn-mcpm" data-tab="tab-mcpm">MCPM</button>
+            <button class="tab-button" role="tab" aria-selected="false" aria-controls="tab-uv" id="tab-btn-uv" data-tab="tab-uv">uv (Manual)</button>
+            <button class="tab-button" role="tab" aria-selected="false" aria-controls="tab-pip" id="tab-btn-pip" data-tab="tab-pip">pip</button>
+            <button class="tab-button" role="tab" aria-selected="false" aria-controls="tab-container" id="tab-btn-container" data-tab="tab-container">Container</button>
+          </div>
+
+          <!-- Claude Code CLI -->
+          <div class="tab-panel" role="tabpanel" id="tab-claude-code" aria-labelledby="tab-btn-claude-code">
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">Simply paste this prompt into Claude Code and it will set everything up for you:</p>
+            <div class="code-block" data-language="text">
+              <div class="code-block-header">
+                <span>Provisioning Prompt</span>
+                <button class="code-copy-btn" aria-label="Copy to clipboard" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">Copy</button>
+              </div>
+              <div class="code-block-body"><code>Provision the Pharos MCP server as a project-local MCP integration:
+
+1. Clone the repository:
+   git clone https://TBD-NEW-REMOTE.git
+
+2. Install Python dependencies using uv:
+   cd pharos &amp;&amp; uv sync
+
+3. Create .mcp.json in the current project root with this configuration.
+   Replace &lt;ABSOLUTE_PATH_TO_LUMINO&gt; with the actual absolute path:
+
+   {
+     "mcpServers": {
+       "lumino": {
+         "type": "stdio",
+         "command": "&lt;ABSOLUTE_PATH_TO_LUMINO&gt;/.venv/bin/python",
+         "args": ["&lt;ABSOLUTE_PATH_TO_LUMINO&gt;/main.py"],
+         "env": { "PYTHONUNBUFFERED": "1" }
+       }
+     }
+   }
+
+4. After creating .mcp.json, restart Claude Code in this project directory.</code></div>
+            </div>
+          </div>
+
+          <!-- MCPM -->
+          <div class="tab-panel" role="tabpanel" id="tab-mcpm" aria-labelledby="tab-btn-mcpm" hidden>
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">Install using MCPM, the MCP server package manager:</p>
+            <div class="code-block" data-language="bash">
+              <div class="code-block-header">
+                <span>bash</span>
+                <button class="code-copy-btn" aria-label="Copy to clipboard" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">Copy</button>
+              </div>
+              <div class="code-block-body"><code># Install Pharos MCP Server
+mcpm install @geored/pharos
+
+# For a specific client
+mcpm install @geored/pharos --claude
+mcpm install @geored/pharos --gemini
+
+# Verify installation
+mcpm list</code></div>
+            </div>
+          </div>
+
+          <!-- uv Manual -->
+          <div class="tab-panel" role="tabpanel" id="tab-uv" aria-labelledby="tab-btn-uv" hidden>
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">Clone the repository and use uv for dependency management:</p>
+            <div class="code-block" data-language="bash">
+              <div class="code-block-header">
+                <span>bash</span>
+                <button class="code-copy-btn" aria-label="Copy to clipboard" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">Copy</button>
+              </div>
+              <div class="code-block-body"><code># Clone the repository
+git clone https://TBD-NEW-REMOTE.git
+cd pharos
+
+# Install dependencies
+uv sync
+
+# Run the server
+uv run python main.py</code></div>
+            </div>
+          </div>
+
+          <!-- pip -->
+          <div class="tab-panel" role="tabpanel" id="tab-pip" aria-labelledby="tab-btn-pip" hidden>
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">Traditional pip installation with virtual environment:</p>
+            <div class="code-block" data-language="bash">
+              <div class="code-block-header">
+                <span>bash</span>
+                <button class="code-copy-btn" aria-label="Copy to clipboard" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">Copy</button>
+              </div>
+              <div class="code-block-body"><code># Clone the repository
+git clone https://TBD-NEW-REMOTE.git
+cd pharos
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -e .
+
+# Run the server
+python main.py</code></div>
+            </div>
+          </div>
+
+          <!-- Container -->
+          <div class="tab-panel" role="tabpanel" id="tab-container" aria-labelledby="tab-btn-container" hidden>
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">Run LUMINO in a container with your kubeconfig mounted:</p>
+            <div class="code-block" data-language="bash">
+              <div class="code-block-header">
+                <span>bash</span>
+                <button class="code-copy-btn" aria-label="Copy to clipboard" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">Copy</button>
+              </div>
+              <div class="code-block-body"><code># Pull the container image
+podman pull quay.io/geored/pharos:latest
+
+# Run with kubeconfig mount
+podman run -it --rm \
+  -v ~/.kube/config:/home/lumino/.kube/config:ro \
+  quay.io/geored/pharos:latest</code></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ INTEGRATIONS ============ -->
+    <section class="section integrations" id="integrations">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2 class="section-title">Integration Guides</h2>
+          <p class="section-subtitle">Configure LUMINO with your preferred AI client.</p>
+        </div>
+        <div class="tabs reveal" id="integration-tabs">
+          <div class="tab-list" role="tablist" aria-label="Integration guides">
+            <button class="tab-button active" role="tab" aria-selected="true" aria-controls="int-claude-desktop" id="int-btn-claude-desktop" data-tab="int-claude-desktop">Claude Desktop</button>
+            <button class="tab-button" role="tab" aria-selected="false" aria-controls="int-claude-code" id="int-btn-claude-code" data-tab="int-claude-code">Claude Code CLI</button>
+            <button class="tab-button" role="tab" aria-selected="false" aria-controls="int-gemini" id="int-btn-gemini" data-tab="int-gemini">Gemini CLI</button>
+            <button class="tab-button" role="tab" aria-selected="false" aria-controls="int-cursor" id="int-btn-cursor" data-tab="int-cursor">Cursor IDE</button>
+          </div>
+
+          <!-- Claude Desktop -->
+          <div class="tab-panel" role="tabpanel" id="int-claude-desktop" aria-labelledby="int-btn-claude-desktop">
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-sm)">Config file location:</p>
+            <ul style="color:var(--text-secondary);margin-bottom:var(--space-lg);padding-left:var(--space-lg);font-size:var(--text-sm)">
+              <li>macOS: <code style="color:var(--accent-cyan)">~/Library/Application Support/Claude/claude_desktop_config.json</code></li>
+              <li>Windows: <code style="color:var(--accent-cyan)">%APPDATA%\Claude\claude_desktop_config.json</code></li>
+              <li>Linux: <code style="color:var(--accent-cyan)">~/.config/Claude/claude_desktop_config.json</code></li>
+            </ul>
+            <div class="code-block" data-language="json">
+              <div class="code-block-header">
+                <span>claude_desktop_config.json</span>
+                <button class="code-copy-btn" aria-label="Copy to clipboard" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">Copy</button>
+              </div>
+              <div class="code-block-body"><code>{
+  "mcpServers": {
+    "lumino": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/path/to/pharos",
+        "python",
+        "main.py"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}</code></div>
+            </div>
+          </div>
+
+          <!-- Claude Code CLI -->
+          <div class="tab-panel" role="tabpanel" id="int-claude-code" aria-labelledby="int-btn-claude-code" hidden>
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-sm)">Create <code style="color:var(--accent-cyan)">.mcp.json</code> in your project root:</p>
+            <div class="code-block" data-language="json" style="margin-top:var(--space-lg)">
+              <div class="code-block-header">
+                <span>.mcp.json</span>
+                <button class="code-copy-btn" aria-label="Copy to clipboard" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">Copy</button>
+              </div>
+              <div class="code-block-body"><code>{
+  "mcpServers": {
+    "lumino": {
+      "type": "stdio",
+      "command": "/path/to/pharos/.venv/bin/python",
+      "args": ["/path/to/pharos/main.py"],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}</code></div>
+            </div>
+            <p style="color:var(--text-secondary);margin-top:var(--space-lg);font-size:var(--text-sm)">Verify: <code style="color:var(--accent-green)">claude mcp list</code></p>
+          </div>
+
+          <!-- Gemini CLI -->
+          <div class="tab-panel" role="tabpanel" id="int-gemini" aria-labelledby="int-btn-gemini" hidden>
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-sm)">Config file location:</p>
+            <ul style="color:var(--text-secondary);margin-bottom:var(--space-lg);padding-left:var(--space-lg);font-size:var(--text-sm)">
+              <li>macOS/Linux: <code style="color:var(--accent-cyan)">~/.config/gemini/mcp_servers.json</code></li>
+              <li>Windows: <code style="color:var(--accent-cyan)">%APPDATA%\gemini\mcp_servers.json</code></li>
+            </ul>
+            <div class="code-block" data-language="json">
+              <div class="code-block-header">
+                <span>mcp_servers.json</span>
+                <button class="code-copy-btn" aria-label="Copy to clipboard" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">Copy</button>
+              </div>
+              <div class="code-block-body"><code>{
+  "mcpServers": {
+    "lumino": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/path/to/pharos",
+        "python",
+        "main.py"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}</code></div>
+            </div>
+            <p style="color:var(--text-secondary);margin-top:var(--space-lg);font-size:var(--text-sm)">Verify: <code style="color:var(--accent-green)">gemini mcp list</code></p>
+          </div>
+
+          <!-- Cursor -->
+          <div class="tab-panel" role="tabpanel" id="int-cursor" aria-labelledby="int-btn-cursor" hidden>
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">Open Cursor Settings (<code style="color:var(--accent-cyan)">Cmd+,</code>) and search for "MCP", then add:</p>
+            <div class="code-block" data-language="json">
+              <div class="code-block-header">
+                <span>Cursor MCP Settings</span>
+                <button class="code-copy-btn" aria-label="Copy to clipboard" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)">Copy</button>
+              </div>
+              <div class="code-block-body"><code>{
+  "mcpServers": {
+    "lumino": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/path/to/pharos",
+        "python",
+        "main.py"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}</code></div>
+            </div>
+            <p style="color:var(--text-secondary);margin-top:var(--space-lg);font-size:var(--text-sm)">Restart Cursor IDE after adding the configuration.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DOCUMENTATION ============ -->
+    <section class="section documentation" id="documentation">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2 class="section-title">Documentation</h2>
+          <p class="section-subtitle">Everything you need to get the most out of LUMINO.</p>
+        </div>
+        <div class="grid grid-3">
+          <a href="https://TBD-NEW-REMOTE#available-tools" class="card doc-card reveal" target="_blank" rel="noopener noreferrer">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+            <h3 class="card-title">Available Tools</h3>
+            <p class="card-description">Complete reference for all 42+ tools organized by category with descriptions and parameters.</p>
+          </a>
+          <a href="https://TBD-NEW-REMOTE#configuration" class="card doc-card reveal reveal-delay-1" target="_blank" rel="noopener noreferrer">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+            <h3 class="card-title">Configuration</h3>
+            <p class="card-description">Environment variables, Kubernetes authentication, Prometheus setup, and transport modes.</p>
+          </a>
+          <a href="https://TBD-NEW-REMOTE#performance-considerations" class="card doc-card reveal reveal-delay-2" target="_blank" rel="noopener noreferrer">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <h3 class="card-title">Performance Guide</h3>
+            <p class="card-description">Optimization tips for large clusters, token budget management, and query best practices.</p>
+          </a>
+          <a href="https://TBD-NEW-REMOTE#troubleshooting" class="card doc-card reveal" target="_blank" rel="noopener noreferrer">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <h3 class="card-title">Troubleshooting</h3>
+            <p class="card-description">Common issues and solutions for kubeconfig, RBAC permissions, timeouts, and connectivity.</p>
+          </a>
+          <a href="https://TBD-NEW-REMOTE#usage-examples" class="card doc-card reveal reveal-delay-1" target="_blank" rel="noopener noreferrer">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </div>
+            <h3 class="card-title">Usage Examples</h3>
+            <p class="card-description">Real-world query examples: RCA, predictive analysis, simulation, topology mapping, and more.</p>
+          </a>
+          <a href="https://TBD-NEW-REMOTE#architecture" class="card doc-card reveal reveal-delay-2" target="_blank" rel="noopener noreferrer">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+            </div>
+            <h3 class="card-title">Architecture</h3>
+            <p class="card-description">Understand the system design, transport detection, caching strategies, and data flow.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ COMMUNITY ============ -->
+    <section class="section community" id="community">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2 class="section-title">Community</h2>
+          <p class="section-subtitle">LUMINO is open source and we welcome contributions from the community.</p>
+        </div>
+        <div class="community-grid reveal">
+          <div class="community-cta">
+            <h3 style="font-size:var(--text-2xl);margin-bottom:var(--space-md)">Join the LUMINO Community</h3>
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-xl);line-height:1.8">
+              Whether you're an SRE, DevOps engineer, or AI enthusiast, there are many ways to get involved.
+              Report bugs, suggest features, contribute code, or help improve documentation.
+            </p>
+            <a href="https://TBD-NEW-REMOTE" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="margin-right:6px"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              Star on GitHub
+            </a>
+          </div>
+          <div class="community-links">
+            <a href="https://TBD-NEW-REMOTE/blob/main/CONTRIBUTING.md" class="card" target="_blank" rel="noopener noreferrer">
+              <h4 class="card-title" style="font-size:var(--text-base)">Contributing Guide</h4>
+              <p class="card-description">Learn how to set up your dev environment and submit pull requests.</p>
+            </a>
+            <a href="https://TBD-NEW-REMOTE/issues" class="card" target="_blank" rel="noopener noreferrer">
+              <h4 class="card-title" style="font-size:var(--text-base)">Issues</h4>
+              <p class="card-description">Report bugs, request features, or browse existing issues.</p>
+            </a>
+            <a href="https://TBD-NEW-REMOTE/discussions" class="card" target="_blank" rel="noopener noreferrer">
+              <h4 class="card-title" style="font-size:var(--text-base)">Discussions</h4>
+              <p class="card-description">Ask questions, share ideas, and connect with other users.</p>
+            </a>
+            <a href="https://TBD-NEW-REMOTE/blob/main/SECURITY.md" class="card" target="_blank" rel="noopener noreferrer">
+              <h4 class="card-title" style="font-size:var(--text-base)">Security Policy</h4>
+              <p class="card-description">Report vulnerabilities responsibly through our security process.</p>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="#" class="logo" aria-label="LUMINO Home">
+            <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <rect width="32" height="32" rx="6" fill="#0a0e17"/>
+              <path d="M8 6v20h12v-4H12V6H8z" fill="#00e5ff"/>
+              <circle cx="22" cy="22" r="3" fill="#00e676"/>
+            </svg>
+            <span class="logo-text">LUMINO</span>
+          </a>
+          <p style="margin-top:var(--space-md)">AI-powered SRE observability for Kubernetes and OpenShift. Open source under Apache 2.0.</p>
+        </div>
+        <div>
+          <h4 class="footer-heading">Resources</h4>
+          <a href="https://TBD-NEW-REMOTE#readme" class="footer-link" target="_blank" rel="noopener noreferrer">Documentation</a>
+          <a href="https://TBD-NEW-REMOTE#available-tools" class="footer-link" target="_blank" rel="noopener noreferrer">API Reference</a>
+          <a href="https://TBD-NEW-REMOTE/blob/main/CHANGELOG.md" class="footer-link" target="_blank" rel="noopener noreferrer">Changelog</a>
+          <a href="https://TBD-NEW-REMOTE#usage-examples" class="footer-link" target="_blank" rel="noopener noreferrer">Examples</a>
+        </div>
+        <div>
+          <h4 class="footer-heading">Community</h4>
+          <a href="https://TBD-NEW-REMOTE" class="footer-link" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://TBD-NEW-REMOTE/issues" class="footer-link" target="_blank" rel="noopener noreferrer">Issues</a>
+          <a href="https://TBD-NEW-REMOTE/discussions" class="footer-link" target="_blank" rel="noopener noreferrer">Discussions</a>
+          <a href="https://TBD-NEW-REMOTE/blob/main/CONTRIBUTING.md" class="footer-link" target="_blank" rel="noopener noreferrer">Contributing</a>
+        </div>
+        <div>
+          <h4 class="footer-heading">Registries</h4>
+          <a href="https://pypi.org/project/pharos/" class="footer-link" target="_blank" rel="noopener noreferrer">PyPI</a>
+          <a href="https://registry.modelcontextprotocol.io" class="footer-link" target="_blank" rel="noopener noreferrer">MCP Registry</a>
+          <a href="https://quay.io/repository/geored/pharos" class="footer-link" target="_blank" rel="noopener noreferrer">Quay.io</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>Apache 2.0 License</span>
+        <span>Built with the <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer" style="color:var(--accent-cyan)">Model Context Protocol</a></span>
+        <a href="https://TBD-NEW-REMOTE" target="_blank" rel="noopener noreferrer" style="color:var(--text-tertiary)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/terminal.js"></script>
+  <script src="js/tabs.js"></script>
+  <script src="js/intersection.js"></script>
+  <script src="js/syntax.js"></script>
+  <script src="js/mobile-nav.js"></script>
+</body>
+</html>

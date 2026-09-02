@@ -1,0 +1,368 @@
+# deploy/rbac-readonly.yaml — Pharos read-only RBAC manifest
+#
+# VERB GRANT: get + list ONLY.  watch is deliberately withheld.
+#   Rationale: nothing in the code opens a Kubernetes informer / watch stream.
+#   The ReadOnlyCoreV1Api wrapper *capability* (which does include watch) differs
+#   from this manifest's *grant* — least-privilege wins.  Add watch uniformly when
+#   a future informer lands.  This is a reviewer-ratified deviation from spec §4.7:221
+#   (which says "get/list/watch"); it is recorded here so any "delivered in full" banner
+#   cites it explicitly.
+#
+# SECRETS BLAST RADIUS: cluster-wide secrets get/list is effectively cluster-admin-
+#   equivalent — it exposes every ServiceAccount token in the cluster.  The
+#   pharos-readonly-secrets ClusterRole below is therefore NOT aggregate-labelled
+#   (opt-in only).  Prefer the namespace-scoped Role variant at the bottom for the
+#   KubeArchive TLS-certificate case, which is the most common need.
+#
+# PROMETHEUS / THANOS ACCESS: the server reads Prometheus/Thanos via the projected
+#   SA token + env fallbacks; it never reads a Secret for credentials.  Metrics
+#   access is NOT granted here.  Bind the SA to OpenShift's platform-supplied
+#   cluster-monitoring-view ClusterRole instead:
+#     oc adm policy add-cluster-role-to-user cluster-monitoring-view \
+#       -z pharos -n pharos
+#
+# COMPOSITION: an umbrella ClusterRole (pharos-readonly) uses RBAC aggregation to
+#   pull in the four profile-specific tiers.  Apply only the tiers your cluster /
+#   profile actually needs; the single ClusterRoleBinding below covers them all.
+#
+# APPLY INSTRUCTIONS:
+#   # Always-required:
+#   kubectl apply -f deploy/rbac-readonly.yaml
+#
+#   # Opt-in cluster-wide secrets (read the blast-radius note above first):
+#   # Uncomment the aggregate label line in this file and re-apply:
+#   #   rbac.authorization.k8s.io/aggregate-to-pharos-readonly: "true"
+#   # (Do NOT use kubectl label — ArgoCD/Flux will revert label-only changes on next sync.)
+#   kubectl apply -f deploy/rbac-readonly.yaml
+#
+#   # Preferred alternative for KubeArchive TLS secrets only (namespace-scoped):
+#   kubectl apply -f deploy/rbac-readonly.yaml          # creates the Role in kubearchive ns
+#   # if your KubeArchive lives in a different namespace:
+#   # edit the Role/RoleBinding below or re-apply with a kustomize overlay
+#
+#   # Verify after apply:
+#   oc auth can-i --list --as=system:serviceaccount:pharos:pharos
+#
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pharos
+  labels:
+    app.kubernetes.io/name: pharos
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pharos
+  namespace: pharos
+  labels:
+    app.kubernetes.io/name: pharos
+---
+# Umbrella ClusterRole — receives permissions via aggregationRule.
+# Apply the tier ClusterRoles that match your cluster profile;
+# this role and the binding below remain unchanged.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pharos-readonly
+  labels:
+    app.kubernetes.io/name: pharos
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.authorization.k8s.io/aggregate-to-pharos-readonly: "true"
+rules: []
+---
+# Tier 1 — core Kubernetes resources (always apply)
+# Evidence: see living inventory in tests/test_rbac_manifest.py
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pharos-readonly-core
+  labels:
+    app.kubernetes.io/name: pharos
+    rbac.authorization.k8s.io/aggregate-to-pharos-readonly: "true"
+rules:
+  # Core group — get + list
+  - apiGroups: [""]
+    resources:
+      - pods
+      - namespaces
+      - nodes
+      - services
+      - configmaps
+      - persistentvolumes
+      - persistentvolumeclaims
+      - resourcequotas
+      - events
+    verbs: ["get", "list"]
+  # Core group — get only (subresource / single-object reads)
+  - apiGroups: [""]
+    resources:
+      - pods/log
+      - endpoints
+      - limitranges
+      - serviceaccounts
+    verbs: ["get"]
+  # Apps workloads
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - daemonsets
+      - statefulsets
+    verbs: ["get", "list"]
+  # Batch workloads
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["get", "list"]
+  # Storage — get only (read_storage_class by name at server-mcp.py:2109; no list call)
+  - apiGroups: ["storage.k8s.io"]
+    resources:
+      - storageclasses
+    verbs: ["get"]
+  # Autoscaling — get only (read_namespaced_hpa by name at server-mcp.py:2114)
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs: ["get"]
+  # Networking — get only (get_namespaced_custom_object by name at server-mcp.py:2222)
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+    verbs: ["get"]
+  # Admission webhooks — get only (cluster-scoped, read-only config inspection)
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources:
+      - validatingwebhookconfigurations
+      - mutatingwebhookconfigurations
+    verbs: ["get"]
+  # API discovery — extension detect() probes and version checks
+  # (ApisApi.get_api_versions :1414/:13268, VersionApi.get_code :9911)
+  # Normally covered by system:discovery but must be explicit in hardened clusters.
+  - nonResourceURLs:
+      - "/api"
+      - "/apis"
+      - "/apis/*"
+      - "/version"
+    verbs: ["get"]
+---
+# Tier 2 — Tekton pipelines (apply when running against a Tekton-enabled cluster)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pharos-readonly-tekton
+  labels:
+    app.kubernetes.io/name: pharos
+    rbac.authorization.k8s.io/aggregate-to-pharos-readonly: "true"
+rules:
+  # Core Tekton resources
+  - apiGroups: ["tekton.dev"]
+    resources:
+      - pipelineruns
+      - taskruns
+      - pipelines
+      - tasks
+    verbs: ["get", "list"]
+  # ClusterTask is cluster-scoped and deprecated (v1beta1 only); get is enough
+  - apiGroups: ["tekton.dev"]
+    resources:
+      - clustertasks
+    verbs: ["get"]
+  # Tekton Triggers:
+  #   eventlisteners: get+list (both get-by-name dispatch and label-search list)
+  #   triggertemplates/triggerbindings: get+list — registered in search_resources_by_labels
+  #     dispatch at helpers/utils.py:1654-1655; previously get-only, causing silent 403
+  #     when listed (server-mcp.py:4894 swallows 403/404)
+  #   triggers: list only — search dispatch entry only (no get-by-name call in code)
+  - apiGroups: ["triggers.tekton.dev"]
+    resources:
+      - eventlisteners
+    verbs: ["get", "list"]
+  - apiGroups: ["triggers.tekton.dev"]
+    resources:
+      - triggertemplates
+      - triggerbindings
+    verbs: ["get", "list"]
+  - apiGroups: ["triggers.tekton.dev"]
+    resources:
+      - triggers
+    verbs: ["list"]
+  # Pipelines as Code — list only (list_cluster_custom_object at server-mcp.py:4262)
+  - apiGroups: ["pipelinesascode.tekton.dev"]
+    resources:
+      - repositories
+    verbs: ["list"]
+---
+# Tier 3 — OpenShift-specific resources (apply on OpenShift / OCP clusters)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pharos-readonly-openshift
+  labels:
+    app.kubernetes.io/name: pharos
+    rbac.authorization.k8s.io/aggregate-to-pharos-readonly: "true"
+rules:
+  # Routes — get+list (list_namespaced_custom_object at server-mcp.py:5162)
+  - apiGroups: ["route.openshift.io"]
+    resources:
+      - routes
+    verbs: ["get", "list"]
+  # Cluster operators and version — list only (list_cluster_custom_object at
+  #   server-mcp.py:10172/:10196; no get-by-name call in code)
+  - apiGroups: ["config.openshift.io"]
+    resources:
+      - clusteroperators
+      - clusterversions
+    verbs: ["list"]
+  # Machine config pools and configs — list only (list_cluster_custom_object at
+  #   server-mcp.py:9698/:9748; no get-by-name call in code)
+  - apiGroups: ["machineconfiguration.openshift.io"]
+    resources:
+      - machineconfigpools
+      - machineconfigs
+    verbs: ["list"]
+  # prometheuses: list_cluster_custom_object plural=prometheuses — list only
+  #   (src/server-mcp.py:5231; no get-by-name path anywhere in the tree)
+  - apiGroups: ["monitoring.coreos.com"]
+    resources:
+      - prometheuses
+    verbs: ["list"]
+  # podmonitors/servicemonitors/prometheusrules/alertmanagers: get only —
+  #   all accessed by name via get_namespaced_custom_object (server-mcp.py:2133-2136);
+  #   no list call in code (D1 §get-only confirmed)
+  - apiGroups: ["monitoring.coreos.com"]
+    resources:
+      - podmonitors
+      - servicemonitors
+      - prometheusrules
+      - alertmanagers
+    verbs: ["get"]
+  # OpenShift build/image/app workloads — list only (search_resources_by_labels
+  #   dispatch at helpers/utils.py:1640-1643; no get-by-name call in code)
+  - apiGroups: ["build.openshift.io"]
+    resources:
+      - buildconfigs
+      - builds
+    verbs: ["list"]
+  - apiGroups: ["image.openshift.io"]
+    resources:
+      - imagestreams
+    verbs: ["list"]
+  - apiGroups: ["apps.openshift.io"]
+    resources:
+      - deploymentconfigs
+    verbs: ["list"]
+---
+# Tier 4 — Konflux (RHTAP / appstudio) resources
+#   Apply on clusters running the Konflux control plane.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pharos-readonly-konflux
+  labels:
+    app.kubernetes.io/name: pharos
+    rbac.authorization.k8s.io/aggregate-to-pharos-readonly: "true"
+rules:
+  # components: get+list (list_namespaced_custom_object in lineage.py:539)
+  # releases: get+list (list_namespaced_custom_object in lineage.py:745)
+  - apiGroups: ["appstudio.redhat.com"]
+    resources:
+      - components
+      - releases
+    verbs: ["get", "list"]
+  # applications/snapshots/releaseplans/releaseplanadmissions: get only —
+  #   only accessed by name via get_kubernetes_resource dispatch (server-mcp.py:2145-2150);
+  #   no list call in code
+  - apiGroups: ["appstudio.redhat.com"]
+    resources:
+      - applications
+      - snapshots
+      - releaseplans
+      - releaseplanadmissions
+    verbs: ["get"]
+  # integrationtestscenarios are v1beta2 and only fetched by name (get only)
+  - apiGroups: ["appstudio.redhat.com"]
+    resources:
+      - integrationtestscenarios
+    verbs: ["get"]
+---
+# SECRETS TIER — NOT aggregate-labelled; cluster-wide secrets get/list is
+# effectively cluster-admin-equivalent (exposes every SA token in the cluster).
+# Only add the aggregate label if you have audited this decision:
+#   Uncomment the line below and re-apply with kubectl apply -f deploy/rbac-readonly.yaml
+#   (Do NOT use kubectl label — ArgoCD/Flux will revert label-only changes on next sync.)
+#
+# Three tool call sites need secrets: check_cluster_certificate_health
+# (server-mcp.py:9361/:9462), investigate_tls_certificate_issues (:10671),
+# and KubeArchive TLS material (kubearchive_integration.py:1113).
+# For the KubeArchive case, prefer the namespace-scoped Role variant below.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pharos-readonly-secrets
+  labels:
+    app.kubernetes.io/name: pharos
+    # rbac.authorization.k8s.io/aggregate-to-pharos-readonly: "true"  # opt-in — see above
+rules:
+  - apiGroups: [""]
+    resources:
+      - secrets
+    verbs: ["get", "list"]
+---
+# Namespace-scoped Role for KubeArchive TLS secrets.
+# Preferred over the cluster-wide pharos-readonly-secrets for the KubeArchive case.
+# Default namespace is 'kubearchive'; adjust if your KubeArchive instance
+# lives in 'product-kubearchive' or another namespace.
+# (kubearchive_integration.py:1113 — reads kubearchive-ca and
+#  kubearchive-api-server-tls secrets in kubearchive / product-kubearchive / default)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pharos-readonly-secrets
+  namespace: kubearchive
+  labels:
+    app.kubernetes.io/name: pharos
+rules:
+  - apiGroups: [""]
+    resources:
+      - secrets
+    resourceNames: ["kubearchive-ca", "kubearchive-api-server-tls"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pharos-readonly-secrets
+  namespace: kubearchive
+  labels:
+    app.kubernetes.io/name: pharos
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pharos-readonly-secrets
+subjects:
+  - kind: ServiceAccount
+    name: pharos
+    namespace: pharos
+---
+# ClusterRoleBinding — binds the pharos SA to the umbrella ClusterRole.
+# The umbrella aggregates whichever tier ClusterRoles are labelled
+# aggregate-to-pharos-readonly=true at the time of lookup.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pharos-readonly
+  labels:
+    app.kubernetes.io/name: pharos
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pharos-readonly
+subjects:
+  - kind: ServiceAccount
+    name: pharos
+    namespace: pharos

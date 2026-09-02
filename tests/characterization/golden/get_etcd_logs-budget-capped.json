@@ -1,0 +1,4 @@
+{
+  "_truncation": "1 pod log(s) truncated to ~200 tokens each (max_context_tokens=50)",
+  "etcd-node-1": "<TS>Z INFO starting server\n<TS>Z ERROR connection refused to db:5432\n<TS>Z WARN retrying in 5s\n<TS>Z ERROR connection refused to db:5432\n<TS>Z FATAL giving up after 2 retries\n<TS>Z INFO starting server\n<TS>Z ERROR connection refused to db:5432\n<TS>Z WARN retrying in 5s\n<TS>Z ERROR connection refused to db:5432\n<TS>Z FATAL giving up after 2 retries\n\n[... TRUNCATED: 833 tokens exceeded budget of 200 tokens for pod etcd-node-1 ...]"
+}

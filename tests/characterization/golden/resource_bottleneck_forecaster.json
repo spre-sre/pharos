@@ -1,0 +1,110 @@
+{
+  "capacity_recommendations": [
+    {
+      "current_capacity": "30.0%",
+      "implementation_options": [
+        "Add worker nodes",
+        "Implement CPU limits",
+        "Optimize container resource requests",
+        "Consider pod autoscaling"
+      ],
+      "recommended_capacity": "optimize_workloads",
+      "resource": "cpu_node-1",
+      "scaling_urgency": "high"
+    },
+    {
+      "current_capacity": "30.0%",
+      "implementation_options": [
+        "Upgrade node memory",
+        "Implement memory limits",
+        "Review memory-intensive workloads",
+        "Enable memory optimization"
+      ],
+      "recommended_capacity": "review_memory_usage",
+      "resource": "memory_node-1",
+      "scaling_urgency": "high"
+    }
+  ],
+  "cluster_overview": {
+    "capacity_runway": {},
+    "current_cpu_usage": "unknown",
+    "current_memory_usage": "unknown",
+    "fastest_growing_consumers": [],
+    "most_constrained_resources": [],
+    "overall_health": "unknown",
+    "total_cpu_cores": 0,
+    "total_memory_gb": 0,
+    "total_nodes": 0
+  },
+  "forecasts": [
+    {
+      "contributing_factors": [
+        "workload_scaling",
+        "baseline_usage_trend"
+      ],
+      "current_usage": {
+        "unit": "percent",
+        "value": 30.0
+      },
+      "growth_rate": {
+        "unit": "percent_per_5min",
+        "value": 2.5
+      },
+      "predicted_exhaustion": "<TS>",
+      "resource_identifier": {
+        "metric": "cpu_utilization_percent",
+        "node": "node-1"
+      },
+      "resource_type": "cpu"
+    },
+    {
+      "contributing_factors": [
+        "memory_leaks",
+        "workload_growth",
+        "cache_usage"
+      ],
+      "current_usage": {
+        "unit": "percent",
+        "value": 30.0
+      },
+      "growth_rate": {
+        "unit": "percent_per_5min",
+        "value": 2.5
+      },
+      "predicted_exhaustion": "<TS>",
+      "resource_identifier": {
+        "metric": "memory_utilization_percent",
+        "node": "node-1"
+      },
+      "resource_type": "memory"
+    },
+    {
+      "contributing_factors": [
+        "log_growth",
+        "cache_accumulation",
+        "temporary_files"
+      ],
+      "current_usage": {
+        "unit": "percent",
+        "value": 30.0
+      },
+      "growth_rate": {
+        "unit": "percent_per_5min",
+        "value": 2.5
+      },
+      "predicted_exhaustion": "<TS>",
+      "resource_identifier": {
+        "metric": "disk_utilization_percent",
+        "mountpoint": "unknown",
+        "node": "node-1"
+      },
+      "resource_type": "disk"
+    }
+  ],
+  "historical_accuracy": {
+    "accuracy_rate": null,
+    "last_validation": null,
+    "note": "Prediction validation not implemented - accuracy not tracked",
+    "previous_predictions": 3
+  }
+}

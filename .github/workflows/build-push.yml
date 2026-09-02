@@ -1,0 +1,138 @@
+name: Build and Push Container
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+# Registry and image are org-overridable via repository variables;
+# defaults resolve to the Pharos target with no configuration required.
+env:
+  REGISTRY: ${{ vars.REGISTRY || 'quay.io' }}
+  IMAGE_NAME: ${{ vars.IMAGE_NAME || 'geored/pharos' }}
+
+jobs:
+  unit-tests:
+    # Reusable test workflow — a fresh remote with zero secrets gets a green run here.
+    # Run-count: a PR-branch push triggers THREE suite runs (test.yml:push + test.yml:pull_request
+    # + this workflow_call). Main/tag pushes trigger TWO (test.yml:push + this workflow_call).
+    # GHA does not deduplicate workflow_call and direct triggers.
+    uses: ./.github/workflows/test.yml
+
+  build:
+    name: Build Container Image
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # HAS_REGISTRY_CREDS is declared at JOB level — workflow-level env cannot read
+      # the secrets context; job-level env can.
+      HAS_REGISTRY_CREDS: ${{ secrets.QUAY_USERNAME != '' && secrets.QUAY_PASSWORD != '' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to registry
+        if: env.HAS_REGISTRY_CREDS == 'true' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # :latest only on tag events — not on every main-branch push
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            # Tag with branch name
+            type=ref,event=branch
+            # Tag with PR number
+            type=ref,event=pr
+            # Tag with git tag (v1.0.0 -> 1.0.0)
+            type=semver,pattern={{version}}
+            # Tag with major.minor (v1.0.0 -> 1.0)
+            type=semver,pattern={{major}}.{{minor}}
+            # Tag with short SHA
+            type=sha,prefix=
+
+      - name: Build container image (always — validates Containerfile on every push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Containerfile
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Push container image
+        if: env.HAS_REGISTRY_CREDS == 'true' && github.event_name != 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Containerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Generate build summary
+        run: |
+          echo "## Container Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ${{ env.REGISTRY }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** ${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tags" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  container-test:
+    name: Test Container Image
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name != 'pull_request'
+    env:
+      # HAS_REGISTRY_CREDS at job level (same reason as build job above).
+      HAS_REGISTRY_CREDS: ${{ secrets.QUAY_USERNAME != '' && secrets.QUAY_PASSWORD != '' }}
+
+    steps:
+      - name: Pull and test image
+        if: env.HAS_REGISTRY_CREDS == 'true'
+        shell: bash
+        run: |
+          # Explicit command override required: bare docker run exits 1 by design — 2f fail-closed.
+          # Pull the sha tag (metadata-action type=sha,prefix= emits the 7-char short SHA).
+          # :latest is tag-events-only, so pulling it on a main-branch push would fetch a
+          # stale prior-release image or fail with "manifest unknown".
+          SHA_TAG=${GITHUB_SHA:0:7}
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG}
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG} python --version
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHA_TAG} python -c "import mcp; import kubernetes; print('Modules OK')"
+
+      - name: Test summary
+        if: env.HAS_REGISTRY_CREDS == 'true'
+        run: |
+          echo "## Container Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Container image tested successfully" >> $GITHUB_STEP_SUMMARY

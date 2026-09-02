@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "pharos-dev": {
+      "command": ".venv/bin/python",
+      "args": ["main.py"],
+      "env": {
+        "KUBEARCHIVE_ENABLED": "false"
+      }
+    }
+  }
+}

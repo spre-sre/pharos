@@ -1,0 +1,132 @@
+{
+  "diagnostic_data": {
+    "configuration_issues": [],
+    "dependency_failures": [],
+    "logs_analyzed": {
+      "build-run-2-build-pod": {
+        "anomaly_analysis": {
+          "analysis_summary": "Detected 2 anomalies in 50 log lines. Highest severity: high. Primary issues: high_error_rate, unusual_log_level_distribution",
+          "anomaly_details": {
+            "anomalies": [
+              {
+                "description": "High error rate detected: 60.00% (30/50 lines)",
+                "details": {
+                  "error_patterns": {
+                    "connection": 20,
+                    "error": 10
+                  },
+                  "error_rate": 0.6,
+                  "sample_errors": [
+                    "<TS>Z ERROR connection refused to db:5432",
+                    "<TS>Z ERROR connection refused to db:5432",
+                    "<TS>Z FATAL giving up after 2 retries",
+                    "<TS>Z ERROR connection refused to db:5432",
+                    "<TS>Z ERROR connection refused to db:5432"
+                  ]
+                },
+                "severity": "high",
+                "type": "high_error_rate"
+              },
+              {
+                "description": "High proportion of severe logs: 60.00%",
+                "details": {
+                  "log_level_distribution": {
+                    "debug": 0,
+                    "error": 20,
+                    "fatal": 10,
+                    "info": 10,
+                    "warn": 10
+                  },
+                  "severe_log_ratio": 0.6
+                },
+                "severity": "high",
+                "type": "unusual_log_level_distribution"
+              }
+            ],
+            "log_statistics": {
+              "error_rate": 0.6,
+              "timestamp_coverage": "<VOLATILE>",
+              "total_lines": 50,
+              "unique_patterns": 4
+            },
+            "total_anomalies": 2
+          },
+          "anomaly_detected": true
+        },
+        "log_analysis": {
+          "categorized_errors": {
+            "network": 35
+          },
+          "error_count": 15,
+          "error_patterns": [
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432"
+          ],
+          "summary": "Log contains 50 lines.\nTime span: <TS> to <TS>\nFound 15 potential errors.\nError categories:\n  - Network: 35\n\nExample errors:\n  1. <TS>Z ERROR connection refused to db:5432\n  2. <TS>Z ERROR connection refused to db:5432\n  3. <TS>Z ERROR connection refused to db:5432\n  ... and 12 more"
+        }
+      }
+    },
+    "resource_analysis": {}
+  },
+  "failure_timeline": "<VOLATILE>",
+  "investigation_summary": {
+    "failure_id": "<VOLATILE>",
+    "failure_type": "pipelinerun",
+    "investigation_started": "<VOLATILE>",
+    "root_cause_confidence": 1.0,
+    "severity": "MEDIUM",
+    "severity_score": 4
+  },
+  "related_incidents": [
+    {
+      "incident_id": "<VOLATILE>",
+      "resolution_applied": "Investigation needed",
+      "similarity_score": 0.7
+    }
+  ],
+  "remediation_plan": {
+    "immediate_actions": [
+      "Verify network policies allow necessary connections",
+      "Check external dependencies are accessible from the cluster",
+      "Review DNS configuration in the cluster",
+      "Check for timeouts in build configurations",
+      "Focus investigation on failed tasks: build"
+    ],
+    "preventive_measures": [
+      "Implement network connectivity monitoring",
+      "Review and test network policies regularly",
+      "Set up dependency health checks"
+    ]
+  },
+  "root_cause_analysis": {
+    "affected_systems": [
+      "tekton-pipelines",
+      "kubernetes-cluster",
+      "cluster-networking"
+    ],
+    "contributing_factors": [],
+    "primary_cause": {
+      "category": "network",
+      "confidence": 0.9,
+      "description": "Network connectivity or DNS resolution issues",
+      "evidence": [
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432"
+      ]
+    }
+  }
+}

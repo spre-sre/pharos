@@ -1,0 +1,84 @@
+{
+  "last_updated": "<TS>",
+  "permissions": {
+    "accessible": [
+      "current/team-a/deployments",
+      "current/team-a/services",
+      "current/team-a/replicasets"
+    ],
+    "denied": [],
+    "errors": [
+      {
+        "error": "FakeApi has no canned method 'list_namespaced_persistent_volume_claim' - add it to the case",
+        "resource": "current/team-a/persistentvolumeclaims"
+      },
+      {
+        "error": "FakeApi has no canned method 'list_namespaced_config_map' - add it to the case",
+        "resource": "current/team-a/configmaps"
+      },
+      {
+        "error": "FakeApi has no canned method 'list_namespaced_custom_object' - add it to the case",
+        "resource": "current/team-a/taskruns"
+      },
+      {
+        "error": "FakeApi has no canned method 'list_namespaced_custom_object' - add it to the case",
+        "resource": "current/team-a/tasks"
+      }
+    ]
+  },
+  "summary": {
+    "cluster_stats": {
+      "current": {
+        "edges": 0,
+        "nodes": 2
+      }
+    },
+    "clusters_mapped": 1,
+    "execution_time_seconds": "<VOLATILE>",
+    "potential_blast_radius": {
+      "average_degree": 0.0,
+      "critical_nodes": 0,
+      "critical_nodes_details": [],
+      "depth_limit_used": 5,
+      "max_blast_radius": 0,
+      "most_connected_components": 2
+    },
+    "total_nodes": 2,
+    "total_relationships": 0
+  },
+  "topology": {
+    "edges": [],
+    "nodes": [
+      {
+        "cluster": "current",
+        "id": "<VOLATILE>",
+        "metadata": {
+          "containers": 1,
+          "labels": {
+            "app": "api-1"
+          },
+          "node_name": "node-1"
+        },
+        "name": "api-1",
+        "namespace": "team-a",
+        "status": "Running",
+        "type": "pod"
+      },
+      {
+        "cluster": "current",
+        "id": "<VOLATILE>",
+        "metadata": {
+          "containers": 1,
+          "labels": {
+            "app": "api-2"
+          },
+          "node_name": "node-1"
+        },
+        "name": "api-2",
+        "namespace": "team-a",
+        "status": "Pending",
+        "type": "pod"
+      }
+    ]
+  }
+}

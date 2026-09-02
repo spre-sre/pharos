@@ -1,0 +1,46 @@
+{
+  "artifacts": [],
+  "bottlenecks": [],
+  "end_time": "<VOLATILE>",
+  "lifecycle": {
+    "application": null,
+    "component": null,
+    "integration_tests": [],
+    "nudge_cascade": [],
+    "release_pipelines": [],
+    "releases": [],
+    "snapshots": []
+  },
+  "overall_status": "failed",
+  "pipeline_flow": [
+    {
+      "annotations": {},
+      "cluster": "current",
+      "completion_time": "<VOLATILE>",
+      "labels": {
+        "pipelines.appstudio.openshift.io/type": "build",
+        "tekton.dev/pipeline": "build"
+      },
+      "namespace": "team-a",
+      "pipeline_name": "build-run-2",
+      "pipeline_run_name": "build-run-2",
+      "start_time": "<VOLATILE>",
+      "status": "Failed",
+      "tasks": []
+    }
+  ],
+  "start_time": "<VOLATILE>",
+  "summary": {
+    "clusters_traversed": 1,
+    "pipelines_executed": 1,
+    "stages": {
+      "build": {
+        "count": 1,
+        "status": "failed"
+      }
+    },
+    "total_duration": "<VOLATILE>"
+  },
+  "trace_id": "<VOLATILE>",
+  "trace_type": "custom"
+}

@@ -1,0 +1,55 @@
+{
+  "cluster_info": {},
+  "critical_issues": [],
+  "health_summary": {
+    "degraded_operators": 0,
+    "healthy_operators": 1,
+    "overall_health": "healthy",
+    "total_operators": 1
+  },
+  "operator_status": [
+    {
+      "available": true,
+      "conditions": [
+        {
+          "lastTransitionTime": "<VOLATILE>",
+          "message": "all good",
+          "reason": "AsExpected",
+          "status": "True",
+          "type": "Available"
+        },
+        {
+          "lastTransitionTime": "<VOLATILE>",
+          "message": "",
+          "reason": "AsExpected",
+          "status": "False",
+          "type": "Degraded"
+        }
+      ],
+      "conditions_analysis": {
+        "available": true,
+        "critical_conditions": [],
+        "degraded": false,
+        "healthy_conditions": [
+          {
+            "status": "True",
+            "type": "Available"
+          },
+          {
+            "status": "False",
+            "type": "Degraded"
+          }
+        ],
+        "progressing": false,
+        "warning_conditions": []
+      },
+      "degraded": false,
+      "name": "kube-apiserver",
+      "namespace": "cluster-scoped",
+      "progressing": false,
+      "related_objects": [],
+      "status": "available",
+      "version": "unknown"
+    }
+  ]
+}

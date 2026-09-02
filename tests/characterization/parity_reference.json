@@ -1,0 +1,3687 @@
+{
+  "pinned_commit": "c47ad736962c0e1dd926442055bc42cf88024653",
+  "tools": {
+    "adaptive_namespace_investigation": {
+      "description": "\n    Adaptive namespace investigation with progressive analysis and token budget management.\n\n    Best for medium namespaces (5-30 pods). Prioritizes failed/error pods, correlates events.\n\n    Args:\n        namespace: Kubernetes namespace to investigate.\n        investigation_query: What to investigate (default: \"investigate all logs and events for potential issues\").\n        max_pods: Maximum pods to analyze (default: 20).\n        focus_areas: Areas to focus on (default: [\"errors\", \"warnings\", \"performance\"]).\n        token_budget: Max tokens for investigation (default: 200000).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict: Pod analysis, event correlation, findings, and recommendations.\n            ``investigation_summary`` contains:\n            ``high_or_critical_events_found`` (int): Count of HIGH or CRITICAL severity\n                events found during the investigation (renamed from ``critical_events_found``\n                in Plan D).\n    ",
+      "input_schema": {
+        "properties": {
+          "focus_areas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Focus Areas"
+          },
+          "investigation_query": {
+            "default": "investigate all logs and events for potential issues",
+            "title": "Investigation Query",
+            "type": "string"
+          },
+          "max_pods": {
+            "default": 20,
+            "title": "Max Pods",
+            "type": "integer"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "token_budget": {
+            "default": 200000,
+            "title": "Token Budget",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "adaptive_namespace_investigationArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "adaptive_namespace_investigationOutput",
+        "type": "object"
+      }
+    },
+    "advanced_event_analytics": {
+      "description": "\n    Advanced ML-powered event analytics with log/metrics integration and runbook suggestions.\n\n    Args:\n        namespace: Kubernetes namespace to analyze.\n        time_period: Time window (e.g., \"4h\", \"1d\", \"12h\").\n        include_ml_patterns: Enable ML pattern detection (default: True).\n        include_log_correlation: Correlate with log data (default: True).\n        include_metrics_correlation: Correlate with metrics (default: True).\n        include_runbook_suggestions: Generate runbook suggestions (default: True).\n        analysis_depth: \"basic\", \"comprehensive\" (default), or \"deep\".\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: Advanced analytics with ML insights, correlations, and runbook suggestions.\n    ",
+      "input_schema": {
+        "properties": {
+          "analysis_depth": {
+            "default": "comprehensive",
+            "title": "Analysis Depth",
+            "type": "string"
+          },
+          "include_log_correlation": {
+            "default": true,
+            "title": "Include Log Correlation",
+            "type": "boolean"
+          },
+          "include_metrics_correlation": {
+            "default": true,
+            "title": "Include Metrics Correlation",
+            "type": "boolean"
+          },
+          "include_ml_patterns": {
+            "default": true,
+            "title": "Include Ml Patterns",
+            "type": "boolean"
+          },
+          "include_runbook_suggestions": {
+            "default": true,
+            "title": "Include Runbook Suggestions",
+            "type": "boolean"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "time_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Period"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "advanced_event_analyticsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "advanced_event_analyticsOutput",
+        "type": "object"
+      }
+    },
+    "analyze_failed_pipeline": {
+      "description": "\n    Perform root cause analysis on a failed Tekton PipelineRun.\n\n    Fetches pipeline/task details, analyzes logs for errors, and provides remediation recommendations.\n\n    Args:\n        namespace: Kubernetes namespace of the PipelineRun.\n        pipeline_run: Name of the failed PipelineRun.\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict[str, Any]: Keys: pipeline_name, pipeline_status, overall_message, failed_task_count,\n                        failed_tasks, probable_root_cause, recommended_actions.\n    ",
+      "input_schema": {
+        "properties": {
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "pipeline_run": {
+            "title": "Pipeline Run",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "pipeline_run"
+        ],
+        "title": "analyze_failed_pipelineArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "analyze_failed_pipelineOutput",
+        "type": "object"
+      }
+    },
+    "analyze_logs": {
+      "description": "\n    Analyze log text to extract error patterns and insights.\n\n    Args:\n        log_text: Log content string (single entry, multiple lines, or full log file).\n        source: Declared provenance of the supplied text (default \"\"). Any registered\n                source is accepted as audit metadata \u2014 no cluster contact is made.\n                Unknown (unregistered) sources return the canonical unknown-source error.\n\n    Returns:\n        Dict[str, Any]: Keys: error_count, error_patterns, categorized_errors, summary.\n    ",
+      "input_schema": {
+        "properties": {
+          "log_text": {
+            "title": "Log Text",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "log_text"
+        ],
+        "title": "analyze_logsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "analyze_logsOutput",
+        "type": "object"
+      }
+    },
+    "analyze_logs_hybrid": {
+      "description": "\n    Hybrid log analyzer with intelligent strategy selection and caching.\n\n    Automatically selects best analysis approach based on context and urgency.\n\n    Args:\n        namespace: Kubernetes namespace.\n        pod_name: Pod name to analyze.\n        container_name: Specific container (if multiple).\n        strategy: \"auto\" (default), \"smart_summary\", \"streaming\", or \"hybrid\".\n        request_type: \"investigation\", \"troubleshooting\", or \"monitoring\".\n        urgency: \"low\", \"medium\" (default), \"high\", or \"critical\".\n        use_cache: Use intelligent caching (default: True).\n        custom_params: Custom parameters for strategies.\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict[str, Any]: Keys: strategy_used, analysis_results, supplementary_insights,\n                        performance_metrics, recommendations, cache_info.\n\n    Note: ``analyze_pod_logs_hybrid`` and ``analyze_logs_hybrid`` are the same tool;\n        prefer ``analyze_logs_hybrid``.\n    ",
+      "input_schema": {
+        "properties": {
+          "container_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Container Name"
+          },
+          "custom_params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Custom Params"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "pod_name": {
+            "title": "Pod Name",
+            "type": "string"
+          },
+          "request_type": {
+            "default": "investigation",
+            "title": "Request Type",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "strategy": {
+            "default": "auto",
+            "title": "Strategy",
+            "type": "string"
+          },
+          "urgency": {
+            "default": "medium",
+            "title": "Urgency",
+            "type": "string"
+          },
+          "use_cache": {
+            "default": true,
+            "title": "Use Cache",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "namespace",
+          "pod_name"
+        ],
+        "title": "analyze_pod_logs_hybridArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "analyze_pod_logs_hybridOutput",
+        "type": "object"
+      }
+    },
+    "analyze_pod_logs_hybrid": {
+      "description": "\n    Hybrid log analyzer with intelligent strategy selection and caching.\n\n    Automatically selects best analysis approach based on context and urgency.\n\n    Args:\n        namespace: Kubernetes namespace.\n        pod_name: Pod name to analyze.\n        container_name: Specific container (if multiple).\n        strategy: \"auto\" (default), \"smart_summary\", \"streaming\", or \"hybrid\".\n        request_type: \"investigation\", \"troubleshooting\", or \"monitoring\".\n        urgency: \"low\", \"medium\" (default), \"high\", or \"critical\".\n        use_cache: Use intelligent caching (default: True).\n        custom_params: Custom parameters for strategies.\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict[str, Any]: Keys: strategy_used, analysis_results, supplementary_insights,\n                        performance_metrics, recommendations, cache_info.\n\n    Note: ``analyze_pod_logs_hybrid`` and ``analyze_logs_hybrid`` are the same tool;\n        prefer ``analyze_logs_hybrid``.\n    ",
+      "input_schema": {
+        "properties": {
+          "container_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Container Name"
+          },
+          "custom_params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Custom Params"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "pod_name": {
+            "title": "Pod Name",
+            "type": "string"
+          },
+          "request_type": {
+            "default": "investigation",
+            "title": "Request Type",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "strategy": {
+            "default": "auto",
+            "title": "Strategy",
+            "type": "string"
+          },
+          "urgency": {
+            "default": "medium",
+            "title": "Urgency",
+            "type": "string"
+          },
+          "use_cache": {
+            "default": true,
+            "title": "Use Cache",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "namespace",
+          "pod_name"
+        ],
+        "title": "analyze_pod_logs_hybridArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "analyze_pod_logs_hybridOutput",
+        "type": "object"
+      }
+    },
+    "automated_triage_rca_report_generator": {
+      "description": "\n    Generate automated Root Cause Analysis (RCA) report for pipeline/pod failures.\n\n    Performs log analysis, resource checks, event correlation, and provides remediation suggestions.\n\n    Args:\n        failure_identifier: Pipeline run name, pod name, or failure event ID.\n        namespace: Optional namespace where the failure occurred. If not provided, searches across detected CI/CD namespaces.\n        investigation_depth: \"quick\", \"standard\" (default), or \"deep\".\n        include_related_failures: Analyze related recent failures (default: True).\n        time_window: Time window for related events (default: \"2h\").\n        generate_timeline: Generate event timeline (default: True).\n        include_remediation: Include remediation steps (default: True).\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: RCA report with summary, timeline, root cause, diagnostics, and remediation.\n    ",
+      "input_schema": {
+        "properties": {
+          "failure_identifier": {
+            "title": "Failure Identifier",
+            "type": "string"
+          },
+          "generate_timeline": {
+            "default": true,
+            "title": "Generate Timeline",
+            "type": "boolean"
+          },
+          "include_related_failures": {
+            "default": true,
+            "title": "Include Related Failures",
+            "type": "boolean"
+          },
+          "include_remediation": {
+            "default": true,
+            "title": "Include Remediation",
+            "type": "boolean"
+          },
+          "investigation_depth": {
+            "default": "standard",
+            "title": "Investigation Depth",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespace"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "time_window": {
+            "default": "2h",
+            "title": "Time Window",
+            "type": "string"
+          }
+        },
+        "required": [
+          "failure_identifier"
+        ],
+        "title": "automated_triage_rca_report_generatorArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "automated_triage_rca_report_generatorOutput",
+        "type": "object"
+      }
+    },
+    "check_cluster_certificate_health": {
+      "description": "\n    Scan for expiring certificates across the cluster to prevent service disruptions.\n\n    Scans TLS secrets, system certificates, and provides renewal recommendations.\n\n    Args:\n        warning_threshold_days: Days before expiration for warning (default: 30).\n        critical_threshold_days: Days before expiration for critical alert (default: 7).\n        include_system_certs: Include system certificates (default: True).\n        namespaces: Namespaces to scan (default: all accessible).\n        certificate_types: Types to check: \"tls\", \"ca\", \"client\", \"server\" (default: all).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict: Certificate health with expiration timeline, recommendations, and security findings.\n    ",
+      "input_schema": {
+        "properties": {
+          "certificate_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Certificate Types"
+          },
+          "critical_threshold_days": {
+            "default": 7,
+            "title": "Critical Threshold Days",
+            "type": "integer"
+          },
+          "include_system_certs": {
+            "default": true,
+            "title": "Include System Certs",
+            "type": "boolean"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespaces"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "warning_threshold_days": {
+            "default": 30,
+            "title": "Warning Threshold Days",
+            "type": "integer"
+          }
+        },
+        "title": "check_cluster_certificate_healthArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "check_cluster_certificate_healthOutput",
+        "type": "object"
+      }
+    },
+    "check_resource_constraints": {
+      "description": "\n    Check for resource constraints in a namespace that may impact pipelines.\n\n    Identifies: pending/unschedulable pods, OOMKilled containers, CrashLoopBackOff,\n    ImagePullBackOff, high restart counts, and resource quota utilization.\n\n    Args:\n        namespace: Kubernetes namespace to inspect.\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict[str, Any]: Keys: status (Healthy/Warning/Critical/Error), summary, resource_quotas,\n                        pending_pods_due_to_resources, oom_killed_containers, container_issues,\n                        high_utilization_quotas, recommendations.\n            On namespace not found (404): returns a Dict with keys:\n            ``status`` (\"Error\"), ``summary`` (message), ``error`` (message), ``namespace`` (name),\n            and empty lists for all resource/quota/pod fields.\n    ",
+      "input_schema": {
+        "properties": {
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "check_resource_constraintsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "check_resource_constraintsOutput",
+        "type": "object"
+      }
+    },
+    "ci_cd_performance_baselining_tool": {
+      "description": "\n    Establish performance baselines for pipelines and flag runs deviating from historical norms.\n\n    Uses Prometheus metrics from Tekton controller for accurate historical performance data.\n\n    Args:\n        pipeline_names: Pipelines to analyze (default: all).\n        baseline_period: \"7d\", \"30d\" (default), or \"90d\".\n        deviation_threshold: Std deviations to trigger alerts (default: 2.0).\n        include_task_level: Include task-level analysis (default: True).\n        max_context_tokens: Output token budget (default 50000). Staged truncation caps task_level_analysis lists, then pipeline_baselines count, then drops performance_trends details.\n        source: Kubernetes instance name (default \"\" = the default configured instance).\n                Discovered/connected instances accepted; see list_sources.\n                Kubeconfig-dir-discovered instances require a prior connect_cluster\n                call before the konflux extension can be active on them.\n\n    Returns:\n        Dict: Baselines, recent runs analysis, trends, and optimization opportunities.\n    ",
+      "input_schema": {
+        "properties": {
+          "baseline_period": {
+            "default": "30d",
+            "title": "Baseline Period",
+            "type": "string"
+          },
+          "deviation_threshold": {
+            "default": 2.0,
+            "title": "Deviation Threshold",
+            "type": "number"
+          },
+          "include_task_level": {
+            "default": true,
+            "title": "Include Task Level",
+            "type": "boolean"
+          },
+          "max_context_tokens": {
+            "default": 50000,
+            "title": "Max Context Tokens",
+            "type": "integer"
+          },
+          "pipeline_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pipeline Names"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "ci_cd_performance_baselining_toolArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "ci_cd_performance_baselining_toolOutput",
+        "type": "object"
+      }
+    },
+    "connect_cluster": {
+      "description": "Register a kubernetes cluster instance at runtime from a credential REFERENCE.\n\n    credential_ref accepts EXACTLY: \"kubeconfig:<path>#<context>\" | \"secret:<path>\" | \"env:<VAR>\".\n    Raw tokens or kubeconfig bodies are rejected. secret:/env: refs additionally require a\n    sources.kubernetes cluster_registry entry for <name> providing the server URL.\n\n    Returns: {connected, name, extensions, tools_added} on success, else\n    {error, code, hint} with code \u2208 raw_credential_rejected | unknown_ref_scheme |\n    bad_ref_grammar | ref_outside_allowlist | missing_cluster_registry_entry |\n    context_not_found | dial_failed | duplicate_name.\n    ",
+      "input_schema": {
+        "properties": {
+          "credential_ref": {
+            "title": "Credential Ref",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "credential_ref"
+        ],
+        "title": "connect_clusterArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "connect_clusterOutput",
+        "type": "object"
+      }
+    },
+    "conservative_namespace_overview": {
+      "description": "\n    Conservative namespace analysis optimized for large namespaces with strict token limits.\n\n    Smart-samples critical pods (failed, high-restart, error states) for rapid issue detection.\n\n    Args:\n        namespace: Kubernetes namespace to analyze.\n        max_pods: Maximum pods to analyze (default: 10).\n        focus_areas: Areas to focus on (default: [\"errors\", \"warnings\"]).\n        sample_strategy: \"smart\" for intelligent sampling, \"recent\" for newest pods.\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict: Analysis results with pod health, issues detected, and recommendations.\n    ",
+      "input_schema": {
+        "properties": {
+          "focus_areas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Focus Areas"
+          },
+          "max_pods": {
+            "default": 10,
+            "title": "Max Pods",
+            "type": "integer"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "sample_strategy": {
+            "default": "smart",
+            "title": "Sample Strategy",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "conservative_namespace_overviewArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "conservative_namespace_overviewOutput",
+        "type": "object"
+      }
+    },
+    "detect_anomalies": {
+      "description": "\n    Detect anomalies in Tekton PipelineRuns/TaskRuns using z-score statistical analysis.\n\n    Identifies unusually long execution times (threshold: 2.5 standard deviations from mean).\n\n    Args:\n        namespace: Kubernetes namespace to analyze.\n        limit: Max recent PipelineRuns to analyze (default: 50).\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: Keys: pipeline_anomalies, task_anomalies (lists with anomaly details)\n        on success.\n\n        Two distinct error shapes exist:\n\n        *Gate error* (invalid or uncapable source \u2014 exits via ``_gate_source``\n        before the try block):\n        ``{\"error\": message, \"tool\": \"detect_anomalies\", \"requested_source\": source}``\n        \u2014 pipeline_anomalies and task_anomalies are **absent**.\n\n        *Exception error* (any other failure \u2014 API error, etc. \u2014 caught by the\n        except block):\n        ``{\"pipeline_anomalies\": [], \"task_anomalies\": [], \"error\": message}``\n\n        Callers MUST check for the ``\"error\"`` key regardless of which shape is\n        returned; a caller that simply checks for the ``\"error\"`` key is safe\n        either way, as both shapes carry it.\n    ",
+      "input_schema": {
+        "properties": {
+          "limit": {
+            "default": 50,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "detect_anomaliesArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "detect_anomaliesOutput",
+        "type": "object"
+      }
+    },
+    "detect_log_anomalies": {
+      "description": "\n    Detect anomalies in log data using error frequency, pattern repetition, and timestamp analysis.\n\n    Args:\n        logs: Raw log content (newline-separated entries).\n        baseline_patterns: Optional expected error patterns for comparison.\n        severity_threshold: \"low\" (most sensitive), \"medium\", or \"high\" (least sensitive).\n        source: Declared provenance of the supplied text (default \"\"). Any registered\n                source is accepted as audit metadata \u2014 no cluster contact is made.\n                Unknown (unregistered) sources return the canonical unknown-source error.\n\n    Returns:\n        Dict[str, Any]: Keys: anomaly_detected (bool), anomaly_details, analysis_summary.\n    ",
+      "input_schema": {
+        "properties": {
+          "baseline_patterns": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Baseline Patterns"
+          },
+          "logs": {
+            "title": "Logs",
+            "type": "string"
+          },
+          "severity_threshold": {
+            "default": "medium",
+            "title": "Severity Threshold",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "logs"
+        ],
+        "title": "detect_log_anomaliesArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "detect_log_anomaliesOutput",
+        "type": "object"
+      }
+    },
+    "disconnect_cluster": {
+      "description": "Unregister a kubernetes cluster instance previously added at runtime.\n\n    Inverse of connect_cluster. Removes the named instance from the source\n    registry and purges every per-instance runtime store \u2014 client set,\n    connection state, namespace cache, bearer token, extension states,\n    API-group discovery cache, and kubearchive client/discovery caches \u2014 so\n    the name is immediately reusable by a fresh connect_cluster call without\n    serving the previous cluster's data.\n\n    Only instances added via connect_cluster are removable: the default\n    instance and startup-discovered kubeconfig instances are refused (their\n    removal would be irreversible for the process lifetime on deployments\n    with the default empty credential_ref_roots). Non-kubernetes sources\n    (e.g. prometheus) are refused. The registered tool surface is\n    intentionally never narrowed by a disconnect (registration is\n    union-only), so no tool-list-changed notification is emitted.\n\n    Returns: {disconnected: true, name} on success, else {error, code, hint}\n    with code \u2208 unknown_source | cannot_remove_default |\n    not_kubernetes_instance | not_runtime_instance.\n    ",
+      "input_schema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "disconnect_clusterArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "disconnect_clusterOutput",
+        "type": "object"
+      }
+    },
+    "find_pipeline": {
+      "description": "\n    Find Tekton pipelines matching a pattern across all accessible namespaces.\n\n    Searches PipelineRuns/TaskRuns by name, labels, or annotations using cluster-wide queries.\n\n    Args:\n        pipeline_id_pattern: Pattern to match (partial name, label value, or substring).\n        include_taskruns: Include TaskRuns in search results (default: False for performance).\n        max_results: Maximum matching results to return per resource type (default: 100).\n        namespaces: Optional list of namespaces to search (default: all namespaces).\n        pipeline_runs_limit: Max PipelineRuns to fetch from API (default: 1000).\n        task_runs_limit: Max TaskRuns to fetch from API if include_taskruns=True (default: 500).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict[str, Any]: Keys: pipeline_runs, task_runs, pipelines_as_code, all_namespaces_checked,\n                        diagnostic_info, substring_matches.\n    ",
+      "input_schema": {
+        "properties": {
+          "include_taskruns": {
+            "default": false,
+            "title": "Include Taskruns",
+            "type": "boolean"
+          },
+          "max_results": {
+            "default": 100,
+            "title": "Max Results",
+            "type": "integer"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespaces"
+          },
+          "pipeline_id_pattern": {
+            "title": "Pipeline Id Pattern",
+            "type": "string"
+          },
+          "pipeline_runs_limit": {
+            "default": 1000,
+            "title": "Pipeline Runs Limit",
+            "type": "integer"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "task_runs_limit": {
+            "default": 500,
+            "title": "Task Runs Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pipeline_id_pattern"
+        ],
+        "title": "find_pipelineArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "find_pipelineOutput",
+        "type": "object"
+      }
+    },
+    "get_etcd_logs": {
+      "description": "\n    Retrieve etcd pod logs from Kubernetes/OpenShift with flexible time and line filtering.\n\n    Auto-detects cluster type and uses appropriate namespace/label selectors.\n\n    Args:\n        tail_lines: Lines from end of logs (default: 200, None for all).\n        since_seconds: Logs newer than N seconds (measured relative to the time of the API\n            call, not to any timestamp in the log content; overrides tail_lines).\n        since_time: Logs newer than RFC3339 timestamp (overrides since_seconds).\n        until_time: Logs older than RFC3339 timestamp (requires since_time or since_seconds).\n        follow: Stream logs in real-time (default: False).\n        timestamps: Include timestamps (default: True).\n        previous: Get logs from previous container instance (default: False).\n        clean_logs: Clean/format logs (default: True).\n        max_context_tokens: Output token budget (default 50000). Per-pod log strings are truncated (last-newline boundary + notice) to fit; a _truncation summary key is added when any pod was cut.\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict[str, str]: Pod names as keys, logs as values.\n    ",
+      "input_schema": {
+        "properties": {
+          "clean_logs": {
+            "default": true,
+            "title": "Clean Logs",
+            "type": "boolean"
+          },
+          "follow": {
+            "default": false,
+            "title": "Follow",
+            "type": "boolean"
+          },
+          "max_context_tokens": {
+            "default": 50000,
+            "title": "Max Context Tokens",
+            "type": "integer"
+          },
+          "previous": {
+            "default": false,
+            "title": "Previous",
+            "type": "boolean"
+          },
+          "since_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since Seconds"
+          },
+          "since_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since Time"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "tail_lines": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 200,
+            "title": "Tail Lines"
+          },
+          "timestamps": {
+            "default": true,
+            "title": "Timestamps",
+            "type": "boolean"
+          },
+          "until_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until Time"
+          }
+        },
+        "title": "get_etcd_logsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "get_etcd_logsOutput",
+        "type": "object"
+      }
+    },
+    "get_events_smart": {
+      "description": "\n    Adaptive event analysis for a namespace with automatic volume management.\n\n    When no constraints specified, automatically: estimates volume, applies smart time windows,\n    prioritizes errors/warnings, samples within token limits.\n\n    Args:\n        namespace: Kubernetes namespace to analyze.\n        last_n_events: Exact event count (only if user specifies).\n        time_period: Exact time window (only if user specifies).\n        strategy: \"auto\" for adaptive behavior (default).\n        focus_areas: Areas to emphasize (default: [\"errors\", \"warnings\", \"failures\"]).\n        max_context_tokens: Max output tokens (default: 8000).\n        include_summary: Include summary and insights (default: True).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n                Non-kubernetes sources: capability validated per phase 2b.\n\n    Returns:\n        Dict: Events with adaptive filtering, insights, and recommendations.\n\n    Note: ``smart_get_namespace_events`` and ``get_events_smart`` are the same tool;\n        prefer ``get_events_smart``.\n    ",
+      "input_schema": {
+        "properties": {
+          "focus_areas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Focus Areas"
+          },
+          "include_summary": {
+            "default": true,
+            "title": "Include Summary",
+            "type": "boolean"
+          },
+          "last_n_events": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last N Events"
+          },
+          "max_context_tokens": {
+            "default": 8000,
+            "title": "Max Context Tokens",
+            "type": "integer"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "strategy": {
+            "default": "auto",
+            "title": "Strategy",
+            "type": "string"
+          },
+          "time_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Period"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "smart_get_namespace_eventsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "smart_get_namespace_eventsOutput",
+        "type": "object"
+      }
+    },
+    "get_kubernetes_resource": {
+      "description": "\n    Retrieve details about a Kubernetes/Tekton resource.\n\n    Args:\n        resource_type: Resource type. Supported: pod, service, configmap, secret, pvc, namespace, node,\n                       serviceaccount, endpoints, event, persistentvolume, resourcequota, limitrange,\n                       deployment, replicaset, daemonset, statefulset, job, cronjob, ingress,\n                       storageclass, hpa (horizontalpodautoscaler),\n                       pipelinerun, taskrun, pipeline, task, clustertask,\n                       triggertemplate, triggerbinding, eventlistener,\n                       podmonitor, servicemonitor, prometheusrule, alertmanager,\n                       application, component, snapshot, release, releaseplan,\n                       releaseplanadmission, integrationtestscenario.\n        name: Resource name.\n        namespace: Namespace (default: \"default\").\n        output_format: \"summary\", \"detailed\", or \"yaml\" (default: \"summary\").\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        str: Formatted resource information.\n    ",
+      "input_schema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace": {
+            "default": "default",
+            "title": "Namespace",
+            "type": "string"
+          },
+          "output_format": {
+            "default": "summary",
+            "title": "Output Format",
+            "type": "string"
+          },
+          "resource_type": {
+            "title": "Resource Type",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_type",
+          "name"
+        ],
+        "title": "get_kubernetes_resourceArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "get_kubernetes_resourceOutput",
+        "type": "object"
+      }
+    },
+    "get_machine_config_pool_status": {
+      "description": "\n    Monitor OpenShift Machine Config Pools for node configuration and update rollouts.\n\n    Analyzes pool status, update progress, and configuration drift.\n\n    Args:\n        pool_names: Pools to monitor (default: all).\n        include_node_details: Include node status per pool (default: True).\n        include_update_history: Include update history (default: True).\n        filter_updating: Only show updating pools (default: False).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict: Keys: pools_overview, machine_config_pools, recent_config_changes, issues,\n              update_recommendations.\n    ",
+      "input_schema": {
+        "properties": {
+          "filter_updating": {
+            "default": false,
+            "title": "Filter Updating",
+            "type": "boolean"
+          },
+          "include_node_details": {
+            "default": true,
+            "title": "Include Node Details",
+            "type": "boolean"
+          },
+          "include_update_history": {
+            "default": true,
+            "title": "Include Update History",
+            "type": "boolean"
+          },
+          "pool_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pool Names"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "get_machine_config_pool_statusArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "get_machine_config_pool_statusOutput",
+        "type": "object"
+      }
+    },
+    "get_openshift_cluster_operator_status": {
+      "description": "\n    Check health and status of OpenShift cluster operators for platform functionality.\n\n    Analyzes operator conditions, versions, and dependencies.\n\n    Args:\n        operator_names: Operators to check (default: all).\n        include_conditions: Include condition details (default: True).\n        show_version_info: Include version info (default: True).\n        filter_degraded: Only show operators with issues (default: False).\n        include_dependencies: Show operator dependencies (default: False).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict: Keys: cluster_info, operator_status, health_summary, critical_issues, dependencies.\n    ",
+      "input_schema": {
+        "properties": {
+          "filter_degraded": {
+            "default": false,
+            "title": "Filter Degraded",
+            "type": "boolean"
+          },
+          "include_conditions": {
+            "default": true,
+            "title": "Include Conditions",
+            "type": "boolean"
+          },
+          "include_dependencies": {
+            "default": false,
+            "title": "Include Dependencies",
+            "type": "boolean"
+          },
+          "operator_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Operator Names"
+          },
+          "show_version_info": {
+            "default": true,
+            "title": "Show Version Info",
+            "type": "boolean"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "get_openshift_cluster_operator_statusArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "get_openshift_cluster_operator_statusOutput",
+        "type": "object"
+      }
+    },
+    "get_pipelinerun_logs": {
+      "description": "\n    Fetch logs from all pods in a Tekton PipelineRun with adaptive volume management.\n\n    Prioritizes failed pods and manages token budgets automatically when no time/line filters specified.\n\n    Args:\n        pipelinerun_name: PipelineRun name.\n        namespace: Kubernetes namespace.\n        clean_logs: Clean and format logs (default: True).\n        tail_lines: Lines from end (optional).\n        since_seconds: Logs newer than N seconds (optional).\n        since_time: Logs newer than RFC3339 timestamp (optional).\n        timestamps: Include timestamps (default: True).\n        previous: Get logs from previous container instance (default: False).\n        max_token_budget: Maximum tokens for output (default: 18000 \u2014 sized so\n            the JSON response fits a 25k-token MCP client cap; the internal\n            chars/3 estimator runs ~25% optimistic on JSON-escaped log text.\n            Raise only for clients with a larger response cap. Applies to\n            both adaptive and manual modes.\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict[str, Any]: Pod names as keys, logs as values. Includes \"_metadata\" with processing info.\n        Returns {\"info\": \"No pods found...\"} if pods are garbage collected - use query_kubearchive tool.\n    ",
+      "input_schema": {
+        "properties": {
+          "clean_logs": {
+            "default": true,
+            "title": "Clean Logs",
+            "type": "boolean"
+          },
+          "max_token_budget": {
+            "default": 18000,
+            "title": "Max Token Budget",
+            "type": "integer"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "pipelinerun_name": {
+            "title": "Pipelinerun Name",
+            "type": "string"
+          },
+          "previous": {
+            "default": false,
+            "title": "Previous",
+            "type": "boolean"
+          },
+          "since_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since Seconds"
+          },
+          "since_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since Time"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "tail_lines": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tail Lines"
+          },
+          "timestamps": {
+            "default": true,
+            "title": "Timestamps",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pipelinerun_name",
+          "namespace"
+        ],
+        "title": "get_pipelinerun_logsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "get_pipelinerun_logsOutput",
+        "type": "object"
+      }
+    },
+    "get_tekton_pipeline_runs_status": {
+      "description": "\n    Get cluster-wide status summary of all Tekton PipelineRuns and TaskRuns.\n\n    Shows running/succeeded/failed counts, recent failures, and long-running pipelines (>1 hour).\n\n    Args:\n        pipeline_runs_limit: Max PipelineRuns to fetch cluster-wide (default: 500).\n        task_runs_limit_per_namespace: Max TaskRuns to fetch per namespace (default: 100).\n        max_namespaces: Max namespaces to scan for TaskRuns (default: 20).\n        recent_failures_limit: Max recent failures to include in output (default: 10).\n        long_running_limit: Max long-running pipelines to include (default: 5).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict[str, Any]: Keys: timestamp, sampling_info, pipeline_runs (total, by_status,\n                        recent_failures [top N, newest first, genuine failures only],\n                        recent_cancelled [top N, operator cancellations],\n                        failures_by_namespace, long_running [top N]),\n                        task_runs (total, by_status, recent_failures, recent_cancelled,\n                        failures_by_namespace), insights. Counts reflect the sample\n                        (see sampling_info), not a full cluster census.\n    ",
+      "input_schema": {
+        "properties": {
+          "long_running_limit": {
+            "default": 5,
+            "title": "Long Running Limit",
+            "type": "integer"
+          },
+          "max_namespaces": {
+            "default": 20,
+            "title": "Max Namespaces",
+            "type": "integer"
+          },
+          "pipeline_runs_limit": {
+            "default": 500,
+            "title": "Pipeline Runs Limit",
+            "type": "integer"
+          },
+          "recent_failures_limit": {
+            "default": 10,
+            "title": "Recent Failures Limit",
+            "type": "integer"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "task_runs_limit_per_namespace": {
+            "default": 100,
+            "title": "Task Runs Limit Per Namespace",
+            "type": "integer"
+          }
+        },
+        "title": "get_tekton_pipeline_runs_statusArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "get_tekton_pipeline_runs_statusOutput",
+        "type": "object"
+      }
+    },
+    "investigate_tls_certificate_issues": {
+      "description": "\n    Investigate TLS/certificate issues across the cluster with targeted search and analysis.\n\n    Searches system namespaces for TLS error patterns and correlates with certificate events.\n\n    Args:\n        time_range: Search time range (default: \"24h\").\n        max_namespaces: Max namespaces to search (default: 20).\n        focus_on_system_namespaces: Prioritize system namespaces (default: True).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict: TLS issues, affected pods, certificate problems, and remediation suggestions.\n    ",
+      "input_schema": {
+        "properties": {
+          "focus_on_system_namespaces": {
+            "default": true,
+            "title": "Focus On System Namespaces",
+            "type": "boolean"
+          },
+          "max_namespaces": {
+            "default": 20,
+            "title": "Max Namespaces",
+            "type": "integer"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "time_range": {
+            "default": "24h",
+            "title": "Time Range",
+            "type": "string"
+          }
+        },
+        "title": "investigate_tls_certificate_issuesArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "investigate_tls_certificate_issuesOutput",
+        "type": "object"
+      }
+    },
+    "list_namespaces": {
+      "description": "\n    List all namespaces in the Kubernetes cluster.\n\n    Args:\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        List[str]: Alphabetically sorted namespace names on success.\n            Returns an EMPTY list \u2014 indistinguishable from \"cluster has no namespaces\" \u2014\n            when access is denied (403/401) or the cluster is unreachable; callers must\n            not interpret an empty list as evidence of a healthy empty cluster.\n        Dict[str, Any]: Error dict with ``\"error\"`` key when the source is invalid.\n    ",
+      "input_schema": {
+        "properties": {
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "list_namespacesArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            ],
+            "title": "Result"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "list_namespacesOutput",
+        "type": "object"
+      }
+    },
+    "list_pipelineruns": {
+      "description": "\n    List Tekton PipelineRuns in a namespace with status and timing details.\n\n    Args:\n        namespace: Kubernetes namespace to query.\n        limit: Maximum number of PipelineRuns to return (default: 200). Set to 0 for no limit.\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        List[Dict]: PipelineRuns with keys: name, pipeline, status, started_at, completed_at, duration.\n                    Empty list if none found. [{\"error\": \"msg\"}] on failure.\n    ",
+      "input_schema": {
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 200,
+            "title": "Limit"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "list_pipelinerunsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Result",
+            "type": "array"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "list_pipelinerunsOutput",
+        "type": "object"
+      }
+    },
+    "list_pods_in_namespace": {
+      "description": "\n    List all pods in a Kubernetes namespace with status and placement info.\n\n    Args:\n        namespace: Kubernetes namespace to query.\n        limit: Max pods to return (default 200; server-side bound \u2014 large\n               namespaces can exceed 250 pods / multi-MB responses). A trailing\n               \"_truncation\" entry is appended when more pods exist.\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        List[Dict]: Pods with keys: name, status, ip, node_name, creation_timestamp,\n                    restart_count, container_states (list of waiting/terminated reasons).\n    ",
+      "input_schema": {
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 200,
+            "title": "Limit"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "list_pods_in_namespaceArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Result",
+            "type": "array"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "list_pods_in_namespaceOutput",
+        "type": "object"
+      }
+    },
+    "list_recent_pipeline_runs": {
+      "description": "\n    List recent Tekton PipelineRuns across all accessible namespaces, sorted by start time.\n\n    Args:\n        limit: Max PipelineRuns to retrieve (default: 10).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict[str, Any]: Namespace to PipelineRun list on success (``{ns: [run_dicts]}``),\n                        where each run has: namespace, name, start_time, status, pipeline, labels;\n                        or ``{\"error\": message}`` when the source is invalid or access is denied.\n    ",
+      "input_schema": {
+        "properties": {
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "list_recent_pipeline_runsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "list_recent_pipeline_runsOutput",
+        "type": "object"
+      }
+    },
+    "list_sources": {
+      "description": "\n    List configured telemetry sources (adapters), their capabilities, and extension states.\n\n    Returns:\n        Dict[str, Any]: Keys: profile, sources (name-sorted; each entry has name, adapter,\n            capabilities, state; kubernetes entries additionally include a connection key\n            with the dial state; otlp entries additionally include an ingest key with\n            live buffer stats), extensions (name-sorted; each with name, configured, state).\n    ",
+      "input_schema": {
+        "properties": {},
+        "title": "list_sourcesArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "list_sourcesOutput",
+        "type": "object"
+      }
+    },
+    "list_taskruns": {
+      "description": "\n    List Tekton TaskRuns in a namespace, optionally filtered by a specific PipelineRun.\n\n    Args:\n        namespace: Kubernetes namespace to query.\n        pipeline_run: Optional PipelineRun name to filter by.\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        List[Dict]: TaskRuns with keys: name, task, pipeline_run, status, started_at, completed_at, duration.\n    ",
+      "input_schema": {
+        "properties": {
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "pipeline_run": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pipeline Run"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "list_taskrunsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Result",
+            "type": "array"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "list_taskrunsOutput",
+        "type": "object"
+      }
+    },
+    "live_system_topology_mapper": {
+      "description": "\n    Generate real-time dependency graph of Kubernetes/Tekton components and their interconnections.\n\n    Maps Services, Deployments, Pipelines, PVCs, and their relationships via ownerReferences and selectors.\n\n    Args:\n        cluster_names: Clusters to map (default: all).\n        component_types: Filter by types (services, deployments, pipelines, pvcs, etc.). Note: secrets are NOT included by default.\n        namespace_filter: Regex pattern to filter namespaces.\n        depth_limit: Max dependency depth (default: 5).\n        include_metrics: Include resource metrics (default: False).\n        output_format: \"json\" (default), \"graphviz\", or \"mermaid\".\n        skip_on_permission_denied: Continue mapping other resources if permission denied (default: True).\n        max_context_tokens: Output token budget (default 50000). Over budget, edges then nodes are staged-truncated (keep-first order) and a _truncation key reports what was dropped.\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: Topology graph with nodes, edges, summary, metadata, and permission report.\n\n    Note: ``live_system_topology_mapper`` and ``topology_mapper`` are the same tool;\n        prefer ``topology_mapper``.\n    ",
+      "input_schema": {
+        "properties": {
+          "cluster_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cluster Names"
+          },
+          "component_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Component Types"
+          },
+          "depth_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 5,
+            "title": "Depth Limit"
+          },
+          "include_metrics": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "title": "Include Metrics"
+          },
+          "max_context_tokens": {
+            "default": 50000,
+            "title": "Max Context Tokens",
+            "type": "integer"
+          },
+          "namespace_filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespace Filter"
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "json",
+            "title": "Output Format"
+          },
+          "skip_on_permission_denied": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": true,
+            "title": "Skip On Permission Denied"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "live_system_topology_mapperArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "live_system_topology_mapperOutput",
+        "type": "object"
+      }
+    },
+    "manage_prediction_training_data": {
+      "description": "\n    Manage training data for the predictive log analyzer.\n\n    This tool allows viewing, collecting, and managing failure labels used for\n    supervised learning in the predictive_log_analyzer.\n\n    Args:\n        action: Action to perform:\n            - \"stats\": Get training data statistics (default)\n            - \"list_failures\": List recent failure labels\n            - \"add_failure\": Manually add a failure label\n            - \"collect\": Trigger failure collection from namespaces\n            - \"cleanup\": Remove old training data\n        failure_type: For add_failure - type of failure (e.g., \"crash\", \"oom\", \"image\", \"timeout\")\n        namespace: For add_failure/list_failures - namespace filter\n        resource_name: For add_failure - name of the affected resource\n        severity: For add_failure - severity level (\"critical\", \"high\", \"medium\", \"low\")\n        collect_from_namespaces: For collect - specific namespaces to collect from\n        max_namespaces: For collect - maximum namespaces when auto-detecting\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict with action results: statistics, failure list, or operation status.\n    ",
+      "input_schema": {
+        "properties": {
+          "action": {
+            "default": "stats",
+            "title": "Action",
+            "type": "string"
+          },
+          "collect_from_namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Collect From Namespaces"
+          },
+          "failure_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Failure Type"
+          },
+          "max_namespaces": {
+            "default": 10,
+            "title": "Max Namespaces",
+            "type": "integer"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespace"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resource Name"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Severity"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "manage_prediction_training_dataArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "manage_prediction_training_dataOutput",
+        "type": "object"
+      }
+    },
+    "pipeline_tracer": {
+      "description": "\n    Trace a logical operation (commit, PR, image) as it flows through pipelines.\n\n    Correlates pipeline runs using labels, annotations, and artifact references.\n\n    Args:\n        trace_identifier: Commit SHA, PR number, image tag, or custom trace ID.\n        trace_type: \"commit\", \"pr\", \"image\", or \"custom\".\n        start_time: ISO 8601 start timestamp.\n        end_time: ISO 8601 end timestamp.\n        include_artifacts: Include artifact details (default: True).\n        trace_depth: \"shallow\" or \"deep\" (default: \"deep\").\n        namespaces: Specific namespaces to search (skips auto-detection).\n        max_namespaces: Maximum namespaces to search when auto-detecting (default: 50).\n        source: Kubernetes instance name (default \"\" = the default configured instance).\n                Discovered/connected instances accepted; see list_sources.\n                Kubeconfig-dir-discovered instances require a prior connect_cluster\n                call before the konflux extension can be active on them.\n\n    Returns:\n        Dict: Pipeline flow, artifacts, bottlenecks, and summary.\n    ",
+      "input_schema": {
+        "properties": {
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End Time"
+          },
+          "include_artifacts": {
+            "default": true,
+            "title": "Include Artifacts",
+            "type": "boolean"
+          },
+          "max_namespaces": {
+            "default": 50,
+            "title": "Max Namespaces",
+            "type": "integer"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespaces"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Time"
+          },
+          "trace_depth": {
+            "default": "deep",
+            "title": "Trace Depth",
+            "type": "string"
+          },
+          "trace_identifier": {
+            "title": "Trace Identifier",
+            "type": "string"
+          },
+          "trace_type": {
+            "title": "Trace Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trace_identifier",
+          "trace_type"
+        ],
+        "title": "pipeline_tracerArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "pipeline_tracerOutput",
+        "type": "object"
+      }
+    },
+    "predictive_log_analyzer": {
+      "description": "\n    Predict failures using ML analysis of historical log patterns before critical outages occur.\n\n    Uses anomaly detection algorithms to correlate log patterns with failure events.\n    Supports persistent model storage for faster subsequent calls.\n\n    Args:\n        prediction_window: Time window - \"1h\", \"6h\", \"24h\", \"7d\" (default: \"6h\").\n        confidence_threshold: Min confidence for predictions 0.0-1.0 (default: 0.75).\n        log_sources: Sources to analyze - pods, services, nodes (default: all).\n        namespaces: Specific namespaces to analyze (default: auto-detect active namespaces).\n        max_namespaces: Maximum namespaces to scan when auto-detecting (default: 20).\n        force_retrain: Force model retraining even if cached model is valid (default: False).\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: Keys: predictions, model_performance, anomaly_scores, trend_analysis, model_info.\n    ",
+      "input_schema": {
+        "properties": {
+          "confidence_threshold": {
+            "default": 0.75,
+            "title": "Confidence Threshold",
+            "type": "number"
+          },
+          "force_retrain": {
+            "default": false,
+            "title": "Force Retrain",
+            "type": "boolean"
+          },
+          "log_sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Log Sources"
+          },
+          "max_namespaces": {
+            "default": 20,
+            "title": "Max Namespaces",
+            "type": "integer"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespaces"
+          },
+          "prediction_window": {
+            "default": "6h",
+            "title": "Prediction Window",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "predictive_log_analyzerArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "predictive_log_analyzerOutput",
+        "type": "object"
+      }
+    },
+    "progressive_event_analysis": {
+      "description": "\n    Progressive event analysis with multiple detail levels and correlation detection.\n\n    Args:\n        namespace: Kubernetes namespace to analyze.\n        analysis_level: \"overview\", \"detailed\", \"correlation\", or \"deep_dive\" (default: \"overview\").\n        time_period: Time window (e.g., \"2h\", \"4h\", \"1d\").\n        event_filters: Filters like {\"severity\": [\"CRITICAL\"], \"category\": [\"FAILURE\"]}.\n        seed_event_id: Event ID for correlation analysis.\n        focus_areas: Areas to emphasize (default: [\"errors\", \"warnings\", \"failures\"]).\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: Analysis results based on selected level.\n    ",
+      "input_schema": {
+        "properties": {
+          "analysis_level": {
+            "default": "overview",
+            "title": "Analysis Level",
+            "type": "string"
+          },
+          "event_filters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Event Filters"
+          },
+          "focus_areas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Focus Areas"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "seed_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seed Event Id"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "time_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Period"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "progressive_event_analysisArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "progressive_event_analysisOutput",
+        "type": "object"
+      }
+    },
+    "prometheus_query": {
+      "description": "\n    Execute PromQL queries against Prometheus for cluster metrics.\n\n    Supports instant and range queries with automatic endpoint discovery and authentication.\n\n    Args:\n        query: PromQL query string.\n        query_type: \"instant\" or \"range\" (default: \"instant\").\n        start_time: Start for range queries (ISO 8601 or Unix timestamp).\n        end_time: End for range queries (ISO 8601 or Unix timestamp).\n        step: Step interval for range queries (default: \"300s\").\n        cluster: Cluster domain override.\n        format: \"json\", \"table\", or \"csv\" (default: \"json\").\n        namespace_filter: Regex to filter by namespace.\n        limit: Max results to return.\n        timeout: Query timeout in seconds (default: 30).\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: Query results, metadata, execution info, and analysis.\n\n    Note: ``prometheus_query`` and ``query_metrics`` are the same tool;\n        prefer ``query_metrics``.\n    ",
+      "input_schema": {
+        "properties": {
+          "cluster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cluster"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End Time"
+          },
+          "format": {
+            "default": "json",
+            "title": "Format",
+            "type": "string"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Limit"
+          },
+          "namespace_filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespace Filter"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "query_type": {
+            "default": "instant",
+            "title": "Query Type",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Time"
+          },
+          "step": {
+            "default": "300s",
+            "title": "Step",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 30,
+            "title": "Timeout",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "prometheus_queryArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "prometheus_queryOutput",
+        "type": "object"
+      }
+    },
+    "query_kubearchive": {
+      "description": "\n    Query archived Kubernetes resources from KubeArchive (historical data no longer on the cluster).\n\n    Single entry point for archived resources and their logs: set include_logs=True to attach logs\n    for pipelinerun, taskrun, and pod results (use an exact name when you only need one resource).\n    Optional container selects a container for multi-container pods.\n\n    Args:\n        resource_type: One of pipelinerun, taskrun, pod, release, snapshot (case-insensitive).\n        namespace: Kubernetes namespace to search.\n        name: Optional resource name; wildcards supported (e.g. my-pipeline-*).\n        label_selector: Kubernetes label selector string.\n        field_selector: Kubernetes field selector string (KubeArchive support may vary).\n        since_time: Lower bound for creation time (RFC3339 or ISO date).\n        until_time: Upper bound for creation time (RFC3339 or ISO date).\n        include_logs: If True, fetch logs for each matching pod, taskrun, or pipelinerun.\n        container: Optional container name (pods; passed to KubeArchive when include_logs=True).\n        limit: Max resources to return (1-1000; out-of-range values are clamped).\n        output_format: summary, detailed, or yaml.\n        source: Kubernetes instance name (default \"\" = the default configured instance).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict with kubearchive_status, kubearchive_endpoint, resources, total_count, time_range,\n        filters_applied, message, and error when applicable.\n    ",
+      "input_schema": {
+        "properties": {
+          "container": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Container"
+          },
+          "field_selector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Field Selector"
+          },
+          "include_logs": {
+            "default": false,
+            "title": "Include Logs",
+            "type": "boolean"
+          },
+          "label_selector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Label Selector"
+          },
+          "limit": {
+            "default": 100,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "output_format": {
+            "default": "summary",
+            "title": "Output Format",
+            "type": "string"
+          },
+          "resource_type": {
+            "title": "Resource Type",
+            "type": "string"
+          },
+          "since_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since Time"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "until_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until Time"
+          }
+        },
+        "required": [
+          "resource_type",
+          "namespace"
+        ],
+        "title": "query_kubearchiveArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "query_kubearchiveOutput",
+        "type": "object"
+      }
+    },
+    "query_metrics": {
+      "description": "\n    Execute PromQL queries against Prometheus for cluster metrics.\n\n    Supports instant and range queries with automatic endpoint discovery and authentication.\n\n    Args:\n        query: PromQL query string.\n        query_type: \"instant\" or \"range\" (default: \"instant\").\n        start_time: Start for range queries (ISO 8601 or Unix timestamp).\n        end_time: End for range queries (ISO 8601 or Unix timestamp).\n        step: Step interval for range queries (default: \"300s\").\n        cluster: Cluster domain override.\n        format: \"json\", \"table\", or \"csv\" (default: \"json\").\n        namespace_filter: Regex to filter by namespace.\n        limit: Max results to return.\n        timeout: Query timeout in seconds (default: 30).\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: Query results, metadata, execution info, and analysis.\n\n    Note: ``prometheus_query`` and ``query_metrics`` are the same tool;\n        prefer ``query_metrics``.\n    ",
+      "input_schema": {
+        "properties": {
+          "cluster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cluster"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End Time"
+          },
+          "format": {
+            "default": "json",
+            "title": "Format",
+            "type": "string"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Limit"
+          },
+          "namespace_filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespace Filter"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "query_type": {
+            "default": "instant",
+            "title": "Query Type",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Time"
+          },
+          "step": {
+            "default": "300s",
+            "title": "Step",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 30,
+            "title": "Timeout",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "prometheus_queryArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "prometheus_queryOutput",
+        "type": "object"
+      }
+    },
+    "refresh_capabilities": {
+      "description": "Re-run extension detection (auto-mode only) and register newly available tools.\n\n    Returns:\n        Dict[str, Any]: Keys: changed (name-sorted list of newly registered tool names),\n        extensions (name-sorted list of {name, configured, state}).\n    ",
+      "input_schema": {
+        "properties": {},
+        "title": "refresh_capabilitiesArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "refresh_capabilitiesOutput",
+        "type": "object"
+      }
+    },
+    "resource_bottleneck_forecaster": {
+      "description": "\n    Forecast resource bottlenecks by analyzing utilization trends and predicting exhaustion points.\n\n    Uses time-series analysis to predict CPU, memory, disk, and network capacity constraints.\n\n    Args:\n        forecast_horizon: Forecast window - \"1h\", \"6h\", \"24h\", \"7d\", \"30d\" (default: \"24h\").\n        resource_types: Resources to analyze - cpu, memory, disk, network, pvc (default: all).\n        namespaces: Specific namespaces to focus on.\n        trend_analysis_period: Historical period for trends (default: \"7d\").\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: Keys: forecasts, capacity_recommendations, cluster_overview, historical_accuracy.\n    ",
+      "input_schema": {
+        "properties": {
+          "forecast_horizon": {
+            "default": "24h",
+            "title": "Forecast Horizon",
+            "type": "string"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespaces"
+          },
+          "resource_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resource Types"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "trend_analysis_period": {
+            "default": "7d",
+            "title": "Trend Analysis Period",
+            "type": "string"
+          }
+        },
+        "title": "resource_bottleneck_forecasterArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "resource_bottleneck_forecasterOutput",
+        "type": "object"
+      }
+    },
+    "search_resources_by_labels": {
+      "description": "\n    Search Kubernetes resources by labels across multiple resource types and namespaces.\n\n    Args:\n        resource_types: Types to search (e.g., [\"pods\", \"services\", \"deployments\"]).\n        label_selectors: Criteria list [{\"key\": str, \"value\": str, \"operator\": \"equals|exists|not_equals|in|not_in\"}].\n        namespaces: Namespaces to search (default: all).\n        limit_per_type: Max results per type (default: 100).\n        include_metadata_only: Return only metadata (default: False).\n        include_status: Include status info (default: True).\n        sort_by: \"name\", \"namespace\", \"creation_time\", or \"labels\" (default: \"creation_time\").\n        sort_order: \"asc\" or \"desc\" (default: \"desc\").\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict: Search results with resource details, analysis, and recommendations.\n    ",
+      "input_schema": {
+        "properties": {
+          "include_metadata_only": {
+            "default": false,
+            "title": "Include Metadata Only",
+            "type": "boolean"
+          },
+          "include_status": {
+            "default": true,
+            "title": "Include Status",
+            "type": "boolean"
+          },
+          "label_selectors": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Label Selectors",
+            "type": "array"
+          },
+          "limit_per_type": {
+            "default": 100,
+            "title": "Limit Per Type",
+            "type": "integer"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespaces"
+          },
+          "resource_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resource Types",
+            "type": "array"
+          },
+          "sort_by": {
+            "default": "creation_time",
+            "title": "Sort By",
+            "type": "string"
+          },
+          "sort_order": {
+            "default": "desc",
+            "title": "Sort Order",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_types",
+          "label_selectors"
+        ],
+        "title": "search_resources_by_labelsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "search_resources_by_labelsOutput",
+        "type": "object"
+      }
+    },
+    "semantic_log_search": {
+      "description": "\n    Search logs using keyword-based queries across live pod logs, events, and Tekton resources.\n\n    Uses substring matching with Kubernetes/Tekton entity recognition and relevance ranking.\n\n    Args:\n        query: Keyword or phrase to search for (substring matched; entity keywords like pod\n            names or pipeline names are also recognized).\n        time_range: Time range - \"1h\", \"6h\", \"24h\", \"7d\" (default: \"1h\").\n        namespaces: Specific namespaces to search (default: auto-detect relevant namespaces).\n        severity_levels: Log severity levels to include.\n        max_results: Maximum results to return (default: 100).\n        context_lines: Surrounding lines per match (default: 3).\n        group_similar: Group similar log entries (default: True).\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: Keys: query_interpretation, search_results, result_summary, suggestions.\n    ",
+      "input_schema": {
+        "properties": {
+          "context_lines": {
+            "default": 3,
+            "title": "Context Lines",
+            "type": "integer"
+          },
+          "group_similar": {
+            "default": true,
+            "title": "Group Similar",
+            "type": "boolean"
+          },
+          "max_results": {
+            "default": 100,
+            "title": "Max Results",
+            "type": "integer"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespaces"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "severity_levels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Severity Levels"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "time_range": {
+            "default": "1h",
+            "title": "Time Range",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "semantic_log_searchArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "semantic_log_searchOutput",
+        "type": "object"
+      }
+    },
+    "smart_get_namespace_events": {
+      "description": "\n    Adaptive event analysis for a namespace with automatic volume management.\n\n    When no constraints specified, automatically: estimates volume, applies smart time windows,\n    prioritizes errors/warnings, samples within token limits.\n\n    Args:\n        namespace: Kubernetes namespace to analyze.\n        last_n_events: Exact event count (only if user specifies).\n        time_period: Exact time window (only if user specifies).\n        strategy: \"auto\" for adaptive behavior (default).\n        focus_areas: Areas to emphasize (default: [\"errors\", \"warnings\", \"failures\"]).\n        max_context_tokens: Max output tokens (default: 8000).\n        include_summary: Include summary and insights (default: True).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n                Non-kubernetes sources: capability validated per phase 2b.\n\n    Returns:\n        Dict: Events with adaptive filtering, insights, and recommendations.\n\n    Note: ``smart_get_namespace_events`` and ``get_events_smart`` are the same tool;\n        prefer ``get_events_smart``.\n    ",
+      "input_schema": {
+        "properties": {
+          "focus_areas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Focus Areas"
+          },
+          "include_summary": {
+            "default": true,
+            "title": "Include Summary",
+            "type": "boolean"
+          },
+          "last_n_events": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last N Events"
+          },
+          "max_context_tokens": {
+            "default": 8000,
+            "title": "Max Context Tokens",
+            "type": "integer"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "strategy": {
+            "default": "auto",
+            "title": "Strategy",
+            "type": "string"
+          },
+          "time_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Period"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "smart_get_namespace_eventsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "smart_get_namespace_eventsOutput",
+        "type": "object"
+      }
+    },
+    "smart_summarize_logs": {
+      "description": "\n    Adaptive pod log analysis with automatic volume management and multi-pass processing.\n\n    When no time constraints specified, automatically estimates volume and selects optimal time windows.\n\n    Args:\n        namespace: Kubernetes namespace.\n        pod_name: Pod name to analyze.\n        container_name: Specific container (if multiple).\n        summary_level: \"brief\", \"detailed\", or \"comprehensive\" (default: \"detailed\").\n        focus_areas: Analysis focus (default: [\"errors\", \"warnings\", \"performance\"]).\n        time_segments: Time-based segments to analyze (default: 5).\n        max_context_tokens: Max tokens for analysis (default: 10000).\n        since_seconds: Only if user specifies exact seconds.\n        tail_lines: Only if user specifies exact line count.\n        time_period: Only if user specifies period (e.g., \"1h\", \"30m\").\n        start_time: Only if user specifies exact start time.\n        end_time: Only if user specifies exact end time.\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n                For file sources: pod_name is a glob relative to the configured roots;\n                namespace and container_name are ignored. File sources are routed;\n                other non-kubernetes sources validated per phase 2b.\n\n    Returns:\n        Dict[str, Any]: Log analysis with insights, patterns, and recommendations.\n\n    Note: ``smart_summarize_pod_logs`` and ``smart_summarize_logs`` are the same tool;\n        prefer ``smart_summarize_logs``.\n    ",
+      "input_schema": {
+        "properties": {
+          "container_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Container Name"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End Time"
+          },
+          "focus_areas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Focus Areas"
+          },
+          "max_context_tokens": {
+            "default": 10000,
+            "title": "Max Context Tokens",
+            "type": "integer"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "pod_name": {
+            "title": "Pod Name",
+            "type": "string"
+          },
+          "since_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since Seconds"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Time"
+          },
+          "summary_level": {
+            "default": "detailed",
+            "title": "Summary Level",
+            "type": "string"
+          },
+          "tail_lines": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tail Lines"
+          },
+          "time_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Period"
+          },
+          "time_segments": {
+            "default": 5,
+            "title": "Time Segments",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "namespace",
+          "pod_name"
+        ],
+        "title": "smart_summarize_pod_logsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "smart_summarize_pod_logsOutput",
+        "type": "object"
+      }
+    },
+    "smart_summarize_pod_logs": {
+      "description": "\n    Adaptive pod log analysis with automatic volume management and multi-pass processing.\n\n    When no time constraints specified, automatically estimates volume and selects optimal time windows.\n\n    Args:\n        namespace: Kubernetes namespace.\n        pod_name: Pod name to analyze.\n        container_name: Specific container (if multiple).\n        summary_level: \"brief\", \"detailed\", or \"comprehensive\" (default: \"detailed\").\n        focus_areas: Analysis focus (default: [\"errors\", \"warnings\", \"performance\"]).\n        time_segments: Time-based segments to analyze (default: 5).\n        max_context_tokens: Max tokens for analysis (default: 10000).\n        since_seconds: Only if user specifies exact seconds.\n        tail_lines: Only if user specifies exact line count.\n        time_period: Only if user specifies period (e.g., \"1h\", \"30m\").\n        start_time: Only if user specifies exact start time.\n        end_time: Only if user specifies exact end time.\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n                For file sources: pod_name is a glob relative to the configured roots;\n                namespace and container_name are ignored. File sources are routed;\n                other non-kubernetes sources validated per phase 2b.\n\n    Returns:\n        Dict[str, Any]: Log analysis with insights, patterns, and recommendations.\n\n    Note: ``smart_summarize_pod_logs`` and ``smart_summarize_logs`` are the same tool;\n        prefer ``smart_summarize_logs``.\n    ",
+      "input_schema": {
+        "properties": {
+          "container_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Container Name"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End Time"
+          },
+          "focus_areas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Focus Areas"
+          },
+          "max_context_tokens": {
+            "default": 10000,
+            "title": "Max Context Tokens",
+            "type": "integer"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "pod_name": {
+            "title": "Pod Name",
+            "type": "string"
+          },
+          "since_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since Seconds"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Time"
+          },
+          "summary_level": {
+            "default": "detailed",
+            "title": "Summary Level",
+            "type": "string"
+          },
+          "tail_lines": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tail Lines"
+          },
+          "time_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Period"
+          },
+          "time_segments": {
+            "default": 5,
+            "title": "Time Segments",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "namespace",
+          "pod_name"
+        ],
+        "title": "smart_summarize_pod_logsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "smart_summarize_pod_logsOutput",
+        "type": "object"
+      }
+    },
+    "stream_analyze_logs": {
+      "description": "\n    Stream and analyze pod logs in chunks with progressive pattern detection.\n\n    Processes logs in manageable chunks for memory efficiency and real-time insights.\n\n    Args:\n        namespace: Kubernetes namespace.\n        pod_name: Pod name to stream logs from.\n        container_name: Specific container (if multiple).\n        chunk_size: Lines per chunk (default: 5000).\n        analysis_mode: \"errors_only\", \"errors_and_warnings\" (default), \"full_analysis\", or \"custom_patterns\".\n        time_window: Time window for historical logs (e.g., \"1h\", \"6h\", \"24h\").\n        follow: Stream logs in real-time (default: False).\n        max_chunks: Max chunks to process (default: 50).\n        since_seconds: Logs from last N seconds.\n        tail_lines: Limit to last N lines.\n        time_period: Time period (e.g., \"1h\", \"30m\").\n        start_time: Start time (ISO format).\n        end_time: End time (ISO format).\n        max_context_tokens: Maximum tokens for output (default: 50000).\n        source: Telemetry source name (default \"\" = the default configured instance). For file sources: pod_name is a glob relative to the configured roots; namespace and container_name are ignored. File sources are routed; other non-default sources land in later phases.\n\n    Returns:\n        Dict[str, Any]: Keys: chunks, overall_summary, trending_patterns, recommendations, metadata.\n\n    Note: ``stream_analyze_pod_logs`` and ``stream_analyze_logs`` are the same tool;\n        prefer ``stream_analyze_logs``.\n    ",
+      "input_schema": {
+        "properties": {
+          "analysis_mode": {
+            "default": "errors_and_warnings",
+            "title": "Analysis Mode",
+            "type": "string"
+          },
+          "chunk_size": {
+            "default": 5000,
+            "title": "Chunk Size",
+            "type": "integer"
+          },
+          "container_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Container Name"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End Time"
+          },
+          "follow": {
+            "default": false,
+            "title": "Follow",
+            "type": "boolean"
+          },
+          "max_chunks": {
+            "default": 50,
+            "title": "Max Chunks",
+            "type": "integer"
+          },
+          "max_context_tokens": {
+            "default": 50000,
+            "title": "Max Context Tokens",
+            "type": "integer"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "pod_name": {
+            "title": "Pod Name",
+            "type": "string"
+          },
+          "since_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since Seconds"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Time"
+          },
+          "tail_lines": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tail Lines"
+          },
+          "time_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Period"
+          },
+          "time_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Window"
+          }
+        },
+        "required": [
+          "namespace",
+          "pod_name"
+        ],
+        "title": "stream_analyze_pod_logsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "stream_analyze_pod_logsOutput",
+        "type": "object"
+      }
+    },
+    "stream_analyze_pod_logs": {
+      "description": "\n    Stream and analyze pod logs in chunks with progressive pattern detection.\n\n    Processes logs in manageable chunks for memory efficiency and real-time insights.\n\n    Args:\n        namespace: Kubernetes namespace.\n        pod_name: Pod name to stream logs from.\n        container_name: Specific container (if multiple).\n        chunk_size: Lines per chunk (default: 5000).\n        analysis_mode: \"errors_only\", \"errors_and_warnings\" (default), \"full_analysis\", or \"custom_patterns\".\n        time_window: Time window for historical logs (e.g., \"1h\", \"6h\", \"24h\").\n        follow: Stream logs in real-time (default: False).\n        max_chunks: Max chunks to process (default: 50).\n        since_seconds: Logs from last N seconds.\n        tail_lines: Limit to last N lines.\n        time_period: Time period (e.g., \"1h\", \"30m\").\n        start_time: Start time (ISO format).\n        end_time: End time (ISO format).\n        max_context_tokens: Maximum tokens for output (default: 50000).\n        source: Telemetry source name (default \"\" = the default configured instance). For file sources: pod_name is a glob relative to the configured roots; namespace and container_name are ignored. File sources are routed; other non-default sources land in later phases.\n\n    Returns:\n        Dict[str, Any]: Keys: chunks, overall_summary, trending_patterns, recommendations, metadata.\n\n    Note: ``stream_analyze_pod_logs`` and ``stream_analyze_logs`` are the same tool;\n        prefer ``stream_analyze_logs``.\n    ",
+      "input_schema": {
+        "properties": {
+          "analysis_mode": {
+            "default": "errors_and_warnings",
+            "title": "Analysis Mode",
+            "type": "string"
+          },
+          "chunk_size": {
+            "default": 5000,
+            "title": "Chunk Size",
+            "type": "integer"
+          },
+          "container_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Container Name"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End Time"
+          },
+          "follow": {
+            "default": false,
+            "title": "Follow",
+            "type": "boolean"
+          },
+          "max_chunks": {
+            "default": 50,
+            "title": "Max Chunks",
+            "type": "integer"
+          },
+          "max_context_tokens": {
+            "default": 50000,
+            "title": "Max Context Tokens",
+            "type": "integer"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "pod_name": {
+            "title": "Pod Name",
+            "type": "string"
+          },
+          "since_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since Seconds"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Time"
+          },
+          "tail_lines": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tail Lines"
+          },
+          "time_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Period"
+          },
+          "time_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Window"
+          }
+        },
+        "required": [
+          "namespace",
+          "pod_name"
+        ],
+        "title": "stream_analyze_pod_logsArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "stream_analyze_pod_logsOutput",
+        "type": "object"
+      }
+    },
+    "topology_mapper": {
+      "description": "\n    Generate real-time dependency graph of Kubernetes/Tekton components and their interconnections.\n\n    Maps Services, Deployments, Pipelines, PVCs, and their relationships via ownerReferences and selectors.\n\n    Args:\n        cluster_names: Clusters to map (default: all).\n        component_types: Filter by types (services, deployments, pipelines, pvcs, etc.). Note: secrets are NOT included by default.\n        namespace_filter: Regex pattern to filter namespaces.\n        depth_limit: Max dependency depth (default: 5).\n        include_metrics: Include resource metrics (default: False).\n        output_format: \"json\" (default), \"graphviz\", or \"mermaid\".\n        skip_on_permission_denied: Continue mapping other resources if permission denied (default: True).\n        max_context_tokens: Output token budget (default 50000). Over budget, edges then nodes are staged-truncated (keep-first order) and a _truncation key reports what was dropped.\n        source: Telemetry source name (default \"\" = the default configured instance). Phase 2b validates capability only; per-source routing lands in phase 3.\n\n    Returns:\n        Dict: Topology graph with nodes, edges, summary, metadata, and permission report.\n\n    Note: ``live_system_topology_mapper`` and ``topology_mapper`` are the same tool;\n        prefer ``topology_mapper``.\n    ",
+      "input_schema": {
+        "properties": {
+          "cluster_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cluster Names"
+          },
+          "component_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Component Types"
+          },
+          "depth_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 5,
+            "title": "Depth Limit"
+          },
+          "include_metrics": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "title": "Include Metrics"
+          },
+          "max_context_tokens": {
+            "default": 50000,
+            "title": "Max Context Tokens",
+            "type": "integer"
+          },
+          "namespace_filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Namespace Filter"
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "json",
+            "title": "Output Format"
+          },
+          "skip_on_permission_denied": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": true,
+            "title": "Skip On Permission Denied"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "live_system_topology_mapperArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "live_system_topology_mapperOutput",
+        "type": "object"
+      }
+    },
+    "what_if_scenario_simulator": {
+      "description": "\n    Simulate impact of configuration changes before applying to live system with risk assessment.\n\n    Uses Monte Carlo simulation and load modeling based on historical data.\n\n    Args:\n        scenario_type: Type - \"resource_limits\", \"scaling\", \"configuration\", \"deployment\".\n        changes: Changes to simulate with before/after values.\n        scope: Simulation scope - clusters, namespaces, components.\n        simulation_duration: Duration - \"1h\", \"24h\", \"7d\" (default: \"24h\").\n        load_profile: Expected load - \"current\", \"peak\", \"custom\" (default: \"current\").\n        risk_tolerance: Risk level - \"conservative\", \"moderate\", \"aggressive\" (default: \"moderate\").\n        source: Kubernetes instance name (default \"\" = the default configured instance).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict: Keys: simulation_id, impact_analysis, risk_assessment, affected_components, recommendations.\n    ",
+      "input_schema": {
+        "properties": {
+          "changes": {
+            "additionalProperties": true,
+            "title": "Changes",
+            "type": "object"
+          },
+          "load_profile": {
+            "default": "current",
+            "title": "Load Profile",
+            "type": "string"
+          },
+          "risk_tolerance": {
+            "default": "moderate",
+            "title": "Risk Tolerance",
+            "type": "string"
+          },
+          "scenario_type": {
+            "title": "Scenario Type",
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope"
+          },
+          "simulation_duration": {
+            "default": "24h",
+            "title": "Simulation Duration",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_type",
+          "changes"
+        ],
+        "title": "what_if_scenario_simulatorArguments",
+        "type": "object"
+      },
+      "output_schema": {
+        "properties": {
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "what_if_scenario_simulatorOutput",
+        "type": "object"
+      }
+    }
+  }
+}

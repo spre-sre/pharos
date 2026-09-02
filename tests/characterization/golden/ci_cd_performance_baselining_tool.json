@@ -1,0 +1,12 @@
+{
+  "data_source": "kubernetes_api_fallback",
+  "optimization_opportunities": [],
+  "performance_trends": {
+    "degrading_pipelines": [],
+    "improving_pipelines": [],
+    "most_variable_pipelines": [],
+    "stable_pipelines": []
+  },
+  "pipeline_baselines": [],
+  "prometheus_error": "Could not discover Prometheus/Thanos endpoint"
+}

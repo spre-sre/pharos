@@ -1,0 +1,13 @@
+{
+  "action": "collect",
+  "collected": {
+    "from_events": 0,
+    "from_pipelines": 0,
+    "from_pods": 1,
+    "namespaces_scanned": 1
+  },
+  "message": "Collected 1 failure labels from 1 namespaces",
+  "success": true,
+  "timestamp": "<VOLATILE>",
+  "total_collected": 1
+}

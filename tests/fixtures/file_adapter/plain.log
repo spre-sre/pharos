@@ -1,0 +1,5 @@
+2026-01-01T00:00:01Z INFO PLAIN_LOG_FIXTURE server started successfully
+2026-01-01T00:00:02Z ERROR PLAIN_LOG_FIXTURE connection refused to database
+2026-01-01T00:00:03Z WARN PLAIN_LOG_FIXTURE retry attempt in progress
+2026-01-01T00:00:04Z ERROR PLAIN_LOG_FIXTURE connection still failing after retry
+2026-01-01T00:00:05Z INFO PLAIN_LOG_FIXTURE failover to replica initiated

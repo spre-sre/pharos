@@ -1,0 +1,50 @@
+{
+  "failed_task_count": 1,
+  "failed_tasks": [
+    {
+      "error_categories": {
+        "network": 35
+      },
+      "error_patterns": [
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432",
+        "<TS>Z ERROR connection refused to db:5432"
+      ],
+      "failed_steps": [
+        {
+          "exit_code": 1,
+          "reason": "Error",
+          "step_name": "step-build"
+        }
+      ],
+      "message": "",
+      "pod": "build-run-2-build-pod",
+      "status": "Failed",
+      "task_name": "build",
+      "task_run": "build-run-2-build"
+    }
+  ],
+  "overall_message": "Tasks Completed: 3 (Failed)",
+  "pipeline_name": "build",
+  "pipeline_status": "Failed",
+  "probable_root_cause": "Network connectivity issues - check network policies and external dependencies",
+  "recommended_actions": [
+    "Verify network policies allow necessary connections",
+    "Check external dependencies are accessible from the cluster",
+    "Review DNS configuration in the cluster",
+    "Check for timeouts in build configurations",
+    "Focus investigation on failed tasks: build"
+  ]
+}

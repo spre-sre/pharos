@@ -1,0 +1,34 @@
+{
+  "affected_pods": [],
+  "analysis_summary": {
+    "affected_pods": 0,
+    "certificate_events": 0,
+    "investigation_focus": "system_namespaces",
+    "namespaces_searched": 0,
+    "time_range": "<VOLATILE>",
+    "total_tls_issues": 0
+  },
+  "certificate_events": [],
+  "coverage": {
+    "cluster_namespaces_total": 1,
+    "denied": 0,
+    "discovered": 0,
+    "excluded_by_scope": 1,
+    "requested": 0,
+    "requested_mode": "all",
+    "scanned": 0,
+    "scope": "system_namespaces",
+    "skipped": 0,
+    "unit": "namespaces",
+    "verdict": "none"
+  },
+  "recommendations": [
+    "Coverage insufficient: 0 namespaces were searchable \u2014 TLS health cannot be determined"
+  ],
+  "search_metadata": {
+    "search_efficiency": "0 issues found across 0 namespaces",
+    "token_budget_used": "conservative",
+    "tool_optimized_for": "tls_certificate_investigations"
+  },
+  "tls_issues": []
+}

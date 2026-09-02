@@ -1,0 +1,611 @@
+# Pharos MCP Server — example configuration file.
+#
+# Compatibility note: the internal LUMINO_ env prefix, the lumino-mcp logger tree
+# and the ~/.lumino/ data directory are retained for compatibility with existing
+# deployments; they will be renamed in a future major release with a deprecation window.
+#
+# Lumino config (optional — absent file means the built-in `konflux` profile).
+# Select a built-in profile without a file:  LUMINO_PROFILE=kubernetes
+# Point at a config file:                    LUMINO_CONFIG=/path/to/config.yaml
+#
+# ── Transport environment variables (phase 2f) ──────────────────────────────
+#
+# All transport settings are environment-variable-ONLY.  There are no
+# config-file keys for transport — env vars are the sole control plane.
+# LUMINO_HTTP_TOKEN is always runtime-injected; it is never stored in a file.
+#
+# LUMINO_TRANSPORT        (default: auto-detect)
+#   Values: stdio | streamable-http
+#   Precedence: env > k8s auto-detect > stdio
+#     1. LUMINO_TRANSPORT if set → used directly (ValueError on invalid value).
+#     2. KUBERNETES_NAMESPACE or K8S_NAMESPACE set → streamable-http.
+#     3. Neither → stdio.
+#   Example: LUMINO_TRANSPORT=streamable-http
+#
+# LUMINO_BIND_HOST        (default: 127.0.0.1)
+#   Host/IP for the streamable-http listener.
+#   Set to 0.0.0.0 for container/pod deployments (see R3 note below).
+#   Example: LUMINO_BIND_HOST=0.0.0.0
+#
+# LUMINO_BIND_PORT        (default: 8000)
+#   TCP port for the streamable-http listener.
+#   Example: LUMINO_BIND_PORT=8080
+#
+# LUMINO_STATELESS_HTTP   (default: false)
+#   Pass stateless_http=True to FastMCP when running streamable-http.
+#   Set to true in containers (the Containerfile default) to match
+#   stateless OpenShift Route / Kubernetes Ingress deployments.
+#   Single-replica caveat: stateless_http=True is correct when each
+#   request is routed to ANY replica without sticky sessions.  If future
+#   session-sticky state is added (e.g. OTLP rings in phase 5), revisit
+#   the session-manager lifecycle before keeping stateless_http=True.
+#   Example: LUMINO_STATELESS_HTTP=true
+#
+# LUMINO_HTTP_TOKEN       (NO default — intentionally absent from Containerfile)
+#   Bearer token for the streamable-http endpoint.
+#   Fail-closed contract: non-localhost bind (LUMINO_BIND_HOST != 127.0.0.1 /
+#   localhost / ::1) with no token → main.py exits nonzero before binding.
+#   Missing or wrong token → 401 Unauthorized (WWW-Authenticate: Bearer).
+#   /health is always exempt (no auth required, even when token is set).
+#   Example: LUMINO_HTTP_TOKEN=<random-secret>   # inject at runtime only
+#
+# R3 — 0.0.0.0 disables the FastMCP SDK DNS-rebinding guard:
+#   FastMCP's built-in DNS-rebinding protection is active only when binding
+#   127.0.0.1.  Binding 0.0.0.0 bypasses it — this is intentional for
+#   Kubernetes/OpenShift deployments where the real defense layers are:
+#     • LUMINO_HTTP_TOKEN (Bearer auth — required when BIND_HOST is non-localhost)
+#     • OpenShift Route / Kubernetes Ingress (TLS termination at the edge)
+#   TLS must be provided at the Route or Ingress; the container itself speaks
+#   plain HTTP on port 8000.  Do NOT expose port 8000 directly to untrusted
+#   networks without TLS at the edge.
+#
+# ── Canonical tool names (phase 2c) ─────────────────────────────────────────
+#
+# The following six names are the preferred going-forward identifiers for their
+# tool families.  Use these names in agents, runbooks, and automation:
+#
+#   smart_summarize_logs    (canonical for smart_summarize_pod_logs)
+#   stream_analyze_logs     (canonical for stream_analyze_pod_logs)
+#   analyze_logs_hybrid     (canonical for analyze_pod_logs_hybrid)
+#   get_events_smart        (canonical for smart_get_namespace_events)
+#   query_metrics           (canonical for prometheus_query)
+#   topology_mapper         (canonical for live_system_topology_mapper)
+#
+# The original pod/namespace-suffixed names remain REGISTERED and
+# byte-identical in schema and behavior — no change is required in existing
+# agents or tool calls.  Both the canonical and the original name dispatch to
+# the same implementation body and produce identical output.
+#
+# ── Built-in profiles — measured tool counts (drift-pinned by tests/test_profile_docs.py) ──
+#
+# profile: konflux      (default) — 49 tools
+#   Sources: kubernetes (enabled), prometheus (enabled), kubearchive (disabled)
+#   Registers all 49 tools including the 12 Tekton/OpenShift/Konflux extension
+#   tools listed below.  Use this profile when running against an OpenShift
+#   cluster that runs Tekton Pipelines and/or Konflux.
+#
+# profile: kubernetes   — 37 tools
+#   Sources: kubernetes (enabled), prometheus (enabled)
+#   Registers the 37 core tools; the 12 extension tools are ABSENT.
+#   Tool set is IDENTICAL to the standalone profile — the difference between
+#   kubernetes and standalone is source declaration, not tool surface.
+#
+# profile: standalone   — 37 tools
+#   Sources: NONE (zero source entries)
+#   Registers the same 37 k8s-shaped tools as the kubernetes profile, but
+#   declares NO sources.  Every tool call fails at dispatch until the operator
+#   adds file/loki/elasticsearch/otlp entries in this config file.
+#   "Analysis harness mode" (spec §4.6) is the intent, not the default
+#   behaviour.  Tool set is IDENTICAL to the kubernetes profile.
+#
+# The 12 extension tools present only under the konflux profile:
+#   analyze_failed_pipeline         ci_cd_performance_baselining_tool
+#   find_pipeline                   get_etcd_logs
+#   get_machine_config_pool_status  get_openshift_cluster_operator_status
+#   get_pipelinerun_logs            get_tekton_pipeline_runs_status
+#   list_pipelineruns               list_recent_pipeline_runs
+#   list_taskruns                   pipeline_tracer
+#
+# Canonical aliases (6 pairs) are registered unconditionally regardless of
+# profile.  See the Profiles section in README.md for details.
+#
+profile: konflux
+sources:
+  # ── Kubernetes adapter ───────────────────────────────────────────────────────
+  #
+  # The "kubernetes" entry is the built-in default cluster.  All options below
+  # are OPTIONAL; an empty dict `{}` uses the defaults shown here.
+  #
+  # HONEST DISCLOSURE: `connection: connected` in list_sources output means the
+  # kubernetes-go client was CONSTRUCTED from the resolved kubeconfig — it does
+  # NOT mean a health probe was issued or that the API server is reachable.
+  # Actual connectivity is deferred until the first tool call (lazy dial).
+  #
+  # discover_contexts (default: true)
+  #   Auto-discover every context in KUBECONFIG as a named lazy instance.
+  #   Each discovered context appears in list_sources as a separate source
+  #   whose name matches the kubeconfig context name.  Dial is deferred —
+  #   no TCP connections are made at startup.
+  #   Set to false to suppress discovery and use only explicitly configured
+  #   sources (plus instances registered via connect_cluster at runtime).
+  #
+  # kubeconfig_dir (implemented in phase 2e-b)
+  #   Directory of kubeconfig files to mount as additional named instances.
+  #   When set, every *.yaml and *.kubeconfig file directly inside the
+  #   directory (non-recursive) is parsed at startup; each context in each
+  #   file becomes a lazy, dial-free kubernetes source instance.
+  #
+  #   INSTANCE NAMING: the instance name is the context name.  On collision
+  #   with an already-registered name, the fallback is <stem>#<context>
+  #   (e.g. staging.kubeconfig context "admin" → "staging#admin").  If
+  #   <stem>#<context> also collides, the context is skipped.  Files are
+  #   processed in name-sorted order so outcomes are deterministic.
+  #
+  #   DIAL-FREE: no TCP connection is made at startup.  The per-instance
+  #   k8s client set is constructed lazily from the file that owns the
+  #   context at first tool-call time — the same deferred-dial semantics
+  #   used by KUBECONFIG context auto-discovery.
+  #
+  #   ABSENT KEY (default): kubeconfig_dir scanning is OFF.  Only the
+  #   KUBECONFIG-env contexts (discover_contexts) and instances registered
+  #   at runtime via connect_cluster are visible.
+  #
+  #   CROSS-REFERENCE:
+  #     credential_ref_roots   — allowlist for connect_cluster kubeconfig:
+  #                              and secret: path refs (separate from dir scan)
+  #     cluster_registry       — hub-spoke server-URL map for env:/secret:
+  #                              refs; kubeconfig_dir instances carry their
+  #                              server URL inside the kubeconfig file itself
+  #                              and do NOT require a cluster_registry entry.
+  #
+  # credential_ref_roots (default: [] — ALL path-based credential refs rejected)
+  #   Allowlist of filesystem root prefixes that connect_cluster may access
+  #   for kubeconfig:<path>#<context> and secret:<path> credential refs.
+  #   An EMPTY list means no path refs are permitted at all — connect_cluster
+  #   will reject every kubeconfig: and secret: ref with ref_outside_allowlist.
+  #   Add one entry per trusted credential mount point:
+  #     - /var/run/lumino-credentials
+  #   Paths are checked after resolving symlinks (resolve-then-check).
+  #
+  # credential_ref_env_allowlist (default: [])
+  #   Allowlist of environment variable names that connect_cluster may read
+  #   for env:<VAR> credential refs.  An env: ref whose variable name is NOT
+  #   in this list is rejected with ref_outside_allowlist.  Example:
+  #     - KUBECONFIG_STAGING
+  #     - KUBECONFIG_PROD
+  #
+  # cluster_registry (default: {})
+  #   Hub-spoke registry for secret: and env: credential refs, which carry a
+  #   credential only — not the server URL.  Each entry names a cluster and
+  #   provides its API server URL and optionally a CA bundle (spec §4.2.2).
+  #   The name must match the <name> argument passed to connect_cluster.
+  #
+  #   cluster_registry:
+  #     staging:
+  #       server: https://api.staging.example.com:6443
+  #       ca_file: /var/run/lumino-credentials/staging-ca.crt   # optional
+  #     prod:
+  #       server: https://api.prod.example.com:6443
+  #       # ca_file omitted → system CA pool used
+  #
+  # ── connect_cluster credential_ref examples ──────────────────────────────────
+  #
+  #   # Scheme 1 — kubeconfig:<path>#<context>
+  #   #   Path must be inside a credential_ref_roots prefix.
+  #   #   The named context is extracted from the kubeconfig file.
+  #   connect_cluster(
+  #     name="staging",
+  #     credential_ref="kubeconfig:/var/run/lumino-credentials/staging.kubeconfig#staging-admin"
+  #   )
+  #
+  #   # Scheme 2 — secret:<path>
+  #   #   Path must be inside a credential_ref_roots prefix.
+  #   #   File is a service-account token (plain text, not a kubeconfig body).
+  #   #   A matching cluster_registry entry for <name> is required for the URL.
+  #   connect_cluster(
+  #     name="staging",
+  #     credential_ref="secret:/var/run/lumino-credentials/staging-token"
+  #   )
+  #
+  #   # Scheme 3 — env:<VAR>
+  #   #   VAR must be in credential_ref_env_allowlist.
+  #   #   Value of the env var is a service-account token (plain text).
+  #   #   A matching cluster_registry entry for <name> is required for the URL.
+  #   connect_cluster(
+  #     name="prod",
+  #     credential_ref="env:KUBECONFIG_PROD"
+  #   )
+  #
+  #   # Raw tokens and kubeconfig bodies are ALWAYS rejected (raw_credential_rejected).
+  #
+  kubernetes:
+    discover_contexts: true          # auto-discover KUBECONFIG contexts as lazy instances
+    # kubeconfig_dir: /etc/lumino/kubeconfigs   # scan dir for *.yaml / *.kubeconfig
+    credential_ref_roots: []         # EMPTY = all path refs rejected; add trusted mounts
+    #   - /var/run/lumino-credentials
+    credential_ref_env_allowlist: [] # EMPTY = all env refs rejected; add trusted var names
+    #   - KUBECONFIG_STAGING
+    cluster_registry: {}             # hub-spoke: name -> {server, ca_file?} for secret:/env: refs
+    #   staging:
+    #     server: https://api.staging.example.com:6443
+    #     ca_file: /var/run/lumino-credentials/staging-ca.crt
+  prometheus: {}
+  kubearchive: {enabled: false}
+  # ── Loki adapter (phase 4) ──────────────────────────────────────────────────
+  #
+  # Log-only v1.  Pass source="loki-prod" on smart_summarize_pod_logs or
+  # stream_analyze_pod_logs.  Event and Metric routing are deferred to phase 4b.
+  #
+  # AUTH: always via env-var reference (bearer_env / basic_*_env).
+  # NEVER put a raw token in this file — store it in the environment instead.
+  #
+  # loki-prod:
+  #   adapter: loki
+  #   url: http://loki.monitoring.svc.cluster.local:3100
+  #   bearer_env: LOKI_TOKEN           # os.environ["LOKI_TOKEN"] must be set
+  #   # basic_user_env: LOKI_USER      # alternative: HTTP Basic auth
+  #   # basic_pass_env: LOKI_PASS
+  #   entity_label: pod                # Loki label for Entity selectors (default: pod)
+  #   tenant: my-tenant                # X-Scope-OrgID header (omit for single-tenant)
+  #   timeout_s: 30.0                  # HTTP request timeout in seconds (default: 30)
+
+  # ── Elasticsearch adapter (phase 4) ─────────────────────────────────────────
+  #
+  # Log-only v1.  Pass source="es-prod" on smart_summarize_pod_logs or
+  # stream_analyze_pod_logs.  Event and Metric routing (including query_metrics /
+  # aggregation generalization) are deferred to phase 4b.
+  #
+  # SECURITY NOTE — §4.7 Native-passthrough guarantee is PARTIAL in phase 4:
+  #   Enforced: script/script_score keys rejected pre-request; body capped at
+  #   64 KB; 30-second timeout always set; only /{index}/_search requested.
+  #   NOT YET enforced: aggregation bucket-count capping.  A Native body with
+  #   a large "aggs" subtree is pure server-side compute cost — the Log-only
+  #   parser discards aggregation results entirely (only hits.hits is walked).
+  #   The 64 KB cap and timeout bound the risk; explicit bucket capping lands
+  #   in phase 4b with the query_metrics / aggs generalization.
+  #
+  # AUTH: always via env-var reference (bearer_env / basic_*_env).
+  # NEVER put a raw token in this file — store it in the environment instead.
+  #
+  # ENTITY_FIELD NOTE: entity_field is assumed keyword-mapped in the ES index
+  # template.  Use entity_query: match if the field is analyzed (full-text).
+  #
+  # es-prod:
+  #   adapter: elasticsearch
+  #   url: http://elasticsearch.logging.svc.cluster.local:9200
+  #   index_pattern: k8s-logs-*           # required; used as /{pattern}/_search
+  #   bearer_env: ES_TOKEN                # os.environ["ES_TOKEN"] must be set
+  #   # basic_user_env: ES_USER           # alternative: HTTP Basic auth
+  #   # basic_pass_env: ES_PASS
+  #   entity_field: kubernetes.pod_name   # ES field for Entity selectors (default)
+  #   timestamp_field: "@timestamp"       # ES field for timestamps (default)
+  #   message_field: message              # ES field for log body (default)
+  #   level_field: level                  # ES field for severity (default)
+  #   entity_query: term                  # term (exact/keyword, default) or match
+  #   timeout_s: 30.0                     # HTTP request timeout in seconds (default: 30)
+
+  # ── File adapter (phase 3) ────────────────────────────────────────────────
+  #
+  # Enables offline log analysis from local file trees, e.g. incident bundles.
+  # Use source="<name>" (e.g. source="incident-bundle") on wired log tools:
+  #   smart_summarize_pod_logs, stream_analyze_pod_logs.
+  #
+  # CONFIGURATION-ONLY: no built-in profile (konflux/kubernetes/standalone)
+  # carries a file source.  File sources must be declared explicitly here.
+  # (spec §4.7 — no default roots; omitting roots raises at first tool call.)
+  #
+  # incident-bundle:
+  #   adapter: file
+  #   roots:
+  #     - /var/log/incident/2026-07-01   # absolute paths; must exist at startup
+  #     - /mnt/bundle/pods
+  #
+  # PARAMETER SEMANTICS (wired tools only):
+  #   pod_name        — treated as a glob RELATIVE to the configured roots.
+  #                     E.g. pod_name="app-pod/*.log" matches all .log files
+  #                     under that subdirectory across every root.
+  #   namespace       — IGNORED for file sources (no concept of k8s namespace).
+  #   container_name  — IGNORED for file sources (no concept of containers;
+  #                     the glob already selects which files to read).
+  #
+  # LIMIT SEMANTICS — head-N, not k8s tail:
+  #   The file adapter applies tail_lines as a HEAD-N limit (first N records
+  #   across relpath-sorted files), not a tail from the end.  This diverges
+  #   from the Kubernetes adapter, which reads the last N lines from the live
+  #   API.  Provenance.truncated is set when content was cut; a note is added
+  #   when undated records are kept under an active time window.
+  #
+  # SECURITY (spec §4.7 — resolve-then-check):
+  #   Paths are resolved (symlinks followed) BEFORE the root prefix-check.
+  #   Absolute patterns and patterns that escape configured roots are rejected.
+  #   The file adapter is strictly read-only; no write verbs exist on it.
+  #   All LogRecord.attributes["file"] values are ROOT-RELATIVE (relpath
+  #   invariant) — no absolute paths appear in tool output or golden files.
+  #
+  # WINDOW SEMANTICS (wired file tools — phase 3.5):
+  #   start_time/end_time (and since_seconds/time_period where present) are
+  #   derived into a TimeWindow and passed to the file adapter, which filters
+  #   records with a known timestamp.  Records whose timestamp cannot be parsed
+  #   (plain-text lines, klog without a year) are KEPT regardless of the window
+  #   (undated-kept behaviour — FileLogAdapter spec).
+  #
+  #   K8s end_time lossiness: window.end (end_time) ONLY filters file-source
+  #   records.  The Kubernetes API has no "until" / "end" parameter — only
+  #   sinceTime and sinceSeconds.  Passing end_time on a k8s-routed call
+  #   therefore has no effect on which log lines the API returns; the file
+  #   adapter is the only path that honours the upper bound.
+  #
+  # DEFERRED (future phases):
+  #   - stdin and s3:// URI sources (phase 4+)
+  #   - Matchers and Native selectors (SelectorNotSupported today)
+
+  # ── OTLP/HTTP ingest adapter (phase 5) ──────────────────────────────────
+  #
+  # Starts an in-process OTLP/HTTP receiver on its own port (default 4318),
+  # buffering incoming logs into a bounded ring.  The same two wired log tools
+  # (smart_summarize_pod_logs / stream_analyze_pod_logs) then query the ring.
+  #
+  # CONFIGURATION-ONLY: no built-in profile carries an otlp source.
+  # The OTLP receiver is never auto-on — declare it explicitly here (F11).
+  # At most ONE otlp source may be enabled at a time; ≥2 enabled → exit 1.
+  #
+  # ── OTLP transport environment variables ────────────────────────────────
+  #
+  # All ingest transport settings are environment-variable-ONLY (mirrors the
+  # §4.9 streamable-http precedent — no config-file keys for transport).
+  #
+  # LUMINO_OTLP_TOKEN       (NO default — intentionally absent)
+  #   Bearer token for the OTLP ingest endpoint.
+  #   Fail-closed contract: non-localhost bind (LUMINO_OTLP_BIND_HOST other
+  #   than 127.0.0.1 / localhost / ::1) with no token → main.py exits nonzero
+  #   before binding.  Missing or wrong token → 401 Unauthorized
+  #   (WWW-Authenticate: Bearer).  NEVER put a raw token in this file —
+  #   inject at runtime only.
+  #   Example: LUMINO_OTLP_TOKEN=<random-secret>   # inject at runtime
+  #
+  # SECURITY WARNING (F14): localhost ingest is unauthenticated by default —
+  #   set LUMINO_OTLP_TOKEN on any shared host.  Without a token, any local
+  #   process can push fabricated telemetry that the LLM will summarize.
+  #   This is a local data-poisoning risk, not just local read access.
+  #
+  # LUMINO_OTLP_BIND_HOST   (default: 127.0.0.1)
+  #   Host/IP for the OTLP ingest listener.
+  #   Set to 0.0.0.0 in container/pod deployments.
+  #   Non-localhost bind without LUMINO_OTLP_TOKEN → exit 1 (fail-closed).
+  #   Example: LUMINO_OTLP_BIND_HOST=0.0.0.0
+  #
+  # LUMINO_OTLP_BIND_PORT   (default: 4318)
+  #   TCP port for the OTLP ingest listener.
+  #   The standard OTLP/HTTP port is 4318.  This port is NOT baked into the
+  #   Containerfile (R7) — set it via this env var or accept the default.
+  #   Example: LUMINO_OTLP_BIND_PORT=4318
+  #
+  # R3 — single-replica caveat:
+  #   The OTLP ring is in-process memory.  Each replica holds its own ring;
+  #   there is no cross-replica ring sharing or forwarding.  With multiple
+  #   replicas (or stateless_http=True plus load-balanced routing), each
+  #   replica sees only the logs it received.  Run a single replica or pin
+  #   the collector to one replica when using the otlp adapter.
+  #
+  # ── Mandatory configuration keys ────────────────────────────────────────
+  #
+  # ring_capacity (REQUIRED — no default, must be int > 0)
+  #   Maximum number of log records buffered in the ring.  When the ring is
+  #   full, the oldest record is evicted and the dropped_oldest counter
+  #   increments.  Choose a value that fits your expected log volume and
+  #   your available memory (see memory-bound note below).
+  #   Example: ring_capacity: 10000
+  #
+  # max_body_bytes (REQUIRED — no default, must be int > 0)
+  #   Maximum request body size in bytes (wire AND decompressed).
+  #   Both the raw wire bytes AND the cumulative decompressed bytes are
+  #   capped at this value — a per-request size cap alone is bypassable via
+  #   multi-chunk gzip bombs (F1).  The Content-Length precheck, per-chunk
+  #   wire counter, cumulative decompressed counter, and trailing-garbage
+  #   stop are all enforced.  Requests exceeding this cap → 413.
+  #   The OTel Collector default batch size is well below 4 MiB; 8 MiB
+  #   is a safe upper limit for most deployments.
+  #   Example: max_body_bytes: 8388608   # 8 MiB
+  #
+  # max_record_bytes (default: 65536 — 64 KiB)
+  #   Maximum per-record payload counted in CHARACTERS (body + attribute
+  #   keys/values).  Records exceeding this limit are truncated: the body
+  #   gets the budget first, then attributes fill remaining capacity in
+  #   iteration order; a "record truncated" note is added and the
+  #   truncated_records ring counter increments.  This is the
+  #   per-retained-record cap that bounds ring memory in combination
+  #   with ring_capacity (see memory-bound note below).
+  #   The entity grouping attribute is always preserved (capped at 512
+  #   chars) so truncated records remain fetchable by Entity selectors.
+  #
+  # MEMORY BOUND (F5+V8 — honest disclosure):
+  #   Worst case = ring_capacity × (max_record_bytes + 518) of counted payload text
+  #   (body + attribute keys/values, counted in CHARACTERS — multi-byte
+  #   payloads may retain up to ~4× nominal bytes), EXCLUDING per-record
+  #   Python object overhead.  The bound is on payload text, not RSS.
+  #   Both max_body_bytes (per request) and max_record_bytes (per retained
+  #   record) are REQUIRED for the ring to be bounded at all — omitting
+  #   either one leaves the ring unbounded in a different dimension.
+  #
+  # ── Collector configuration snippet ────────────────────────────────────
+  #
+  # OTel Collector otlphttp exporter targeting Lumino's ingest endpoint:
+  #
+  #   exporters:
+  #     otlphttp/lumino:
+  #       endpoint: "http://127.0.0.1:4318"
+  #       encoding: json                  # REQUIRED — protobuf is not supported
+  #       compression: gzip               # gzip is the collector default; accepted
+  #       # compression: none             # also accepted; no other codecs (zstd/snappy → 415)
+  #       headers:
+  #         Authorization: "Bearer ${env:LUMINO_OTLP_TOKEN}"
+  #
+  #   NOTE: The collector gzips by default.  The Lumino receiver accepts
+  #   gzip and identity (uncompressed) only; zstd/snappy/deflate → 415.
+  #
+  # ── HTTP behavior table ─────────────────────────────────────────────────
+  #
+  #   Request shape                                     | Status | Notes
+  #   --------------------------------------------------|--------|-----------------------------
+  #   POST /v1/logs — valid JSON, correct token         |  200   | {} body; records enter ring
+  #   POST /v1/logs — missing / wrong token             |  401   | WWW-Authenticate: Bearer
+  #   POST /v1/logs — application/x-protobuf body       |  415   | use encoding: json (5b)
+  #   POST /v1/logs — unknown Content-Encoding          |  415   | gzip and identity only (F7)
+  #   POST /v1/logs — application/json; charset=utf-8   |  200   | charset param accepted (F6)
+  #   POST /v1/logs — body > max_body_bytes             |  413   | wire AND decompressed cap
+  #   POST /v1/metrics or /v1/traces                    |  501   | deferred to phase 5b
+  #   GET  /v1/logs                                     |  405   | POST only (unregistered paths → 404)
+  #   POST /v1/logs — malformed JSON / attacker shape   |  400   | fixed literal; no echo
+  #
+  # ── Wired tools and honest D10 matrix ──────────────────────────────────
+  #
+  # Only two tools are wired to the OTLP adapter (phase 5):
+  #
+  #   smart_summarize_pod_logs / smart_summarize_logs
+  #   stream_analyze_pod_logs  / stream_analyze_logs
+  #
+  #   Source param (source="<name>") selects the otlp ring.
+  #   Outcome table for a configured and ENABLED otlp source (V1 predicate):
+  #
+  #   Condition                                         | Result
+  #   --------------------------------------------------|------------------------------------------
+  #   Ring empty, no evictions, no window               | "No logs found"  (honest empty buffer)
+  #   Ring has records, window matches                  | log analysis result with windows
+  #   Ring empty, evictions > 0, unbounded window       | outside_retention (evicted>0 message)
+  #   Explicit window starting before coverage start    | outside_retention: evicted>0 message
+  #                                                     |   when evictions exist; receiver-started
+  #                                                     |   message only when evicted==0
+  #
+  #   V1 predicate: outside-retention fires when (window.start is None AND evicted>0)
+  #   OR (window.start is not None AND window.start < covered.start).
+  #   An explicit window starting AFTER covered.start falls through to "No logs found"
+  #   even if evictions > 0 — the predicate requires unbounded OR start<covered.start.
+  #
+  #   Other tools routed to an OTLP source:
+  #     Event/Metric/Inventory tools  → capability error (otlp is Log-only)
+  #     4 Log-gate-only tools         → routing error (not wired to otlp)
+  #
+  # NOTE: the `_otlp_listening` flag (list_sources ingest.listening) reflects
+  # whether the receiver successfully started and is accepting connections.
+  # Declared-but-DISABLED sources (enabled: false or enabled key absent) are
+  # skipped by build_registry and have NO list_sources entry at all.
+  # The listening: false case applies to a declared-and-ENABLED source where
+  # the receiver has not yet started (startup race) or failed to start.
+  #
+  # ── tail-N divergence ───────────────────────────────────────────────────
+  #
+  # The OTLP adapter applies tail_lines as a tail-N limit (most recent N
+  # records from the ring — ascending by received timestamp), consistent
+  # with the Kubernetes adapter.  This diverges from the file adapter, which
+  # applies tail_lines as a HEAD-N limit (first N records across sorted
+  # files).  Provenance.truncated is set when the limit fires.
+  #
+  # ── Example configuration ───────────────────────────────────────────────
+  #
+  # otlp-local:
+  #   adapter: otlp
+  #   ring_capacity: 10000        # required: max log records in ring
+  #   max_body_bytes: 8388608     # required: per-request body cap (wire + decompressed)
+  #   max_record_bytes: 65536     # optional: per-record payload cap (default 64 KiB)
+  #   signals:                    # optional: default ["logs"]; "metrics"/"traces" → error (5b)
+  #     - logs
+
+  # ── Output bounding (phase 3.5) ──────────────────────────────────────────
+  #
+  # Three tools with large / unbounded output are capped by token-budget params:
+  #
+  #   get_pipelinerun_logs   max_token_budget=18000   (sized for a 25k-token
+  #                           MCP client response cap; 80 % of
+  #                           budget is the per-pod allowance computed inside
+  #                           AdaptiveLogProcessor; pods_truncated is reported).
+  #                           Token estimation: len(text) ÷ 3  (char-to-token
+  #                           heuristic used by this tool).
+  #
+  #   get_etcd_logs          max_context_tokens=50000  (added phase 3.5).
+  #                           Per-pod budget = max(200, max_context_tokens ÷ n_log_entries).
+  #                           Each pod log is truncated at the last newline
+  #                           boundary that fits; a "[... TRUNCATED ...]" notice
+  #                           and a top-level _truncation summary key are added
+  #                           when any entry is cut.
+  #                           Token estimation: len(text) ÷ 3  (same heuristic).
+  #
+  #   ci_cd_performance_baselining_tool  max_context_tokens=50000  (phase 3.5).
+  #                           Staged progressive truncation applied at the success
+  #                           return (Prometheus-absent early returns are NOT
+  #                           wrapped — nothing to bound there).  Stages:
+  #                             1. Cap task_level_analysis sub-lists to 5 entries.
+  #                             2. Halve pipeline_baselines count until under budget.
+  #                             3. Drop performance_trends detail keeping counts only.
+  #                           _truncation_stage is added when any stage fires.
+  #                           Token estimation: len(json.dumps(result)) ÷ 4  (matches
+  #                           the existing log_analysis.py heuristic).
+  #
+  # HEURISTIC INCONSISTENCY (documented, deliberately NOT unified — phase 3.5):
+  #   get_pipelinerun_logs and get_etcd_logs estimate tokens as len(text) ÷ 3;
+  #   ci_cd_performance_baselining_tool uses len(json.dumps(...)) ÷ 4.
+  #   Unifying to ÷3 or ÷4 would shift the truncation boundary and require
+  #   regenerating all three new goldens.  The inconsistency is safe (each tool
+  #   uses the same heuristic consistently within its own truncation path) and
+  #   will be resolved in a dedicated cleanup phase after golden stability.
+  #
+  # PROGRESS-LIVENESS CUT (phase 3.5 — revisit on SDK upgrade):
+  #   Streaming progress updates during long tool calls were considered but cut.
+  #   FastMCP 1.11 (current SDK) provides no tool-level middleware hook; any
+  #   implementation would require surgery on generated tool wrappers with
+  #   schema-introspection risk.  Revisit when FastMCP grows a hook mechanism.
+
+# ── Extensions ──────────────────────────────────────────────────────────────
+#
+# Extensions add optional tool families.  Three names are built in; the table
+# below lists each one's registration scope and detection API group (the
+# configured mode depends on the active profile — see the profile defaults
+# table below):
+#
+#   Name        | Mode    | Registers                                  | API group detected
+#   ------------|---------|--------------------------------------------|-----------------------
+#   konflux     |  on     | pipeline_tracer, ci_cd_performance_…, …   | appstudio.redhat.com
+#   openshift   |  on     | get_openshift_cluster_operator_status, …   | config.openshift.io
+#   tekton      |  on     | get_tekton_pipeline_runs_status, …         | tekton.dev
+#
+# Built-in profile defaults:
+#
+#   Profile     | konflux | openshift | tekton
+#   ------------|---------|-----------|-------
+#   konflux     |   on    |    on     |  on      (all extensions on)
+#   kubernetes  |   off   |    off    |  off     (no extensions)
+#   standalone  |  (none — profile carries no extension keys; defaults to off)
+#
+# MODES:
+#   on    — always register the extension's tools at startup; no detect() call.
+#   off   — never register the extension's tools.
+#   auto  — call detect() at startup with a 2-second timeout (cached GET /apis
+#            group discovery); register only if the relevant API group is present.
+#            Errors during detect() are treated as absence (extension stays off).
+#
+# runtime re-detection: call the `refresh_capabilities` tool to re-run detect()
+#   on all auto-mode extensions and register any newly available tools.  Emits
+#   a tools/list_changed notification to the client (requires SDK ≥1.28) and
+#   returns {changed: [...], extensions: [{name, configured, state}, ...]}.
+#
+extensions:
+  tekton: auto      # auto | on | off
+  openshift: auto
+  konflux: off
+
+# ── Knowledge packs ──────────────────────────────────────────────────────────
+#
+# Knowledge packs ship as YAML files under packs/ (k8s-core.yaml, openshift.yaml,
+# konflux.yaml).  Each pack contains a runbook DB and label-key set proven
+# faithful by exact-equality tests at every commit — the data is authoritative.
+#
+# PARTIAL IMPLEMENTATION NOTE (mirrors §4.7 partial-guarantee precedent):
+#   The pack loader lives in src/core/packs.py and is tested (faithfulness-proven
+#   by exact-equality tests at every commit), but it has ZERO production call
+#   sites — nothing loads packs at runtime yet.  The server constructs the
+#   extension facade with packs={}.  Runtime loading and per-profile pack
+#   selection land with the engine-extraction track (engines take
+#   LogBatch/EventStream directly), which is the prerequisite for wiring pack
+#   content into live tool responses.  Until that track lands, packs are
+#   faithfully maintained data-on-disk, not yet consumed in production.
+#
+# No configuration knob exists today.

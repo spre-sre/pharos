@@ -1,0 +1,30 @@
+{
+  "action": "stats",
+  "statistics": {
+    "models": {
+      "current_model_id": "<VOLATILE>",
+      "recent_models": [],
+      "total_models": 0
+    },
+    "recommendations": [
+      "Collect more failure labels using action='collect' to improve predictions",
+      "Run predictive_log_analyzer to collect more log samples",
+      "No log-failure correlations yet. Labels will be correlated during analysis."
+    ],
+    "training_data": {
+      "current_cluster": "fake",
+      "failure_labels_by_cluster": {},
+      "failure_types": {},
+      "last_training": null,
+      "log_samples_by_cluster": {},
+      "severity_distribution": {},
+      "total_correlations": 0,
+      "total_failure_labels": 0,
+      "total_log_samples": 0,
+      "total_training_runs": 0,
+      "unique_namespaces": 0
+    }
+  },
+  "success": true,
+  "timestamp": "<VOLATILE>"
+}

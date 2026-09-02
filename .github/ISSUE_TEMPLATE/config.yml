@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://TBD-NEW-REMOTE#readme
+    about: Check the README for usage instructions and troubleshooting
+  - name: Discussions
+    url: https://TBD-NEW-REMOTE/discussions
+    about: Ask questions and discuss ideas with the community

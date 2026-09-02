@@ -1,0 +1,43 @@
+{
+  "analysis_level": "overview",
+  "generated_at": "<VOLATILE>",
+  "namespace": "team-a",
+  "overview": {
+    "critical_events_preview": [],
+    "drill_down_suggestions": [
+      "Use 'detailed' level for specific event analysis",
+      "Use 'correlation' level to find event relationships",
+      "Use 'deep_dive' level for comprehensive investigation"
+    ],
+    "overview_level": "high_level_summary",
+    "quick_patterns": {
+      "category_distribution": {
+        "FAILURE": 2
+      },
+      "common_issues": {
+        "failed": 2
+      },
+      "event_rate": "20.0 events/hour",
+      "severity_distribution": {
+        "HIGH": 2
+      },
+      "time_span": "<VOLATILE>"
+    },
+    "recent_high_impact": [
+      {
+        "category": "FAILURE",
+        "preview": "[<TS>] Warning: BackOff - Back-off restarting...",
+        "severity": "HIGH",
+        "timestamp": "<VOLATILE>"
+      },
+      {
+        "category": "FAILURE",
+        "preview": "[<TS>] Warning: FailedScheduling - 0/3 nodes ...",
+        "severity": "HIGH",
+        "timestamp": "<VOLATILE>"
+      }
+    ]
+  },
+  "time_period": "<VOLATILE>",
+  "total_events": 2
+}

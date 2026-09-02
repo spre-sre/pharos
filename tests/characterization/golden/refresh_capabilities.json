@@ -1,0 +1,20 @@
+{
+  "changed": [],
+  "extensions": [
+    {
+      "configured": "on",
+      "name": "konflux",
+      "state": "active"
+    },
+    {
+      "configured": "on",
+      "name": "openshift",
+      "state": "active"
+    },
+    {
+      "configured": "on",
+      "name": "tekton",
+      "state": "active"
+    }
+  ]
+}

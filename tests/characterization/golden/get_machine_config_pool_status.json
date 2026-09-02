@@ -1,0 +1,41 @@
+{
+  "issues": [],
+  "machine_config_pools": [
+    {
+      "conditions": [
+        {
+          "status": "True",
+          "type": "Updated"
+        }
+      ],
+      "configuration": {
+        "machine_config_selector": {},
+        "max_unavailable": "1",
+        "node_selector": {},
+        "paused": false
+      },
+      "machine_count": 3,
+      "name": "worker",
+      "node_status": [],
+      "node_status_error": "AttributeError",
+      "ready_machine_count": 3,
+      "status": "ready",
+      "update_progress": {
+        "degraded_machines": 0,
+        "is_updating": false,
+        "progress_percentage": 100.0,
+        "ready_machines": 3,
+        "total_machines": 3,
+        "updated_machines": 3
+      }
+    }
+  ],
+  "pools_overview": {
+    "degraded_pools": 0,
+    "healthy_pools": 1,
+    "total_pools": 1,
+    "updating_pools": 0
+  },
+  "recent_config_changes": [],
+  "update_recommendations": []
+}

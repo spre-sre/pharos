@@ -1,0 +1,3 @@
+2026-01-01T00:00:01Z INFO MIXED_APP_FIXTURE application launched normally
+2026-01-01T00:00:02Z ERROR MIXED_APP_FIXTURE request handler returned 500
+2026-01-01T00:00:03Z INFO MIXED_APP_FIXTURE request recovered after retry

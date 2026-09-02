@@ -1,0 +1,34 @@
+{
+  "all_namespaces_checked": [
+    "team-a"
+  ],
+  "diagnostic_info": {
+    "taskruns_skipped": "Set include_taskruns=True to search TaskRuns"
+  },
+  "pipeline_runs": [
+    {
+      "completion_time": "<VOLATILE>",
+      "labels": {
+        "pipelines.appstudio.openshift.io/type": "build",
+        "tekton.dev/pipeline": "build"
+      },
+      "message": "Tasks Completed: 3 (Failed)",
+      "name": "build-run-2",
+      "namespace": "team-a",
+      "started_at": "<VOLATILE>",
+      "status": "Failed"
+    }
+  ],
+  "summary": {
+    "include_taskruns": false,
+    "max_results_limit": 100,
+    "namespaces_with_tekton_resources": 1,
+    "pipeline_runs_found": 1,
+    "pipeline_runs_scanned": 2,
+    "pipeline_runs_truncated": false,
+    "task_runs_found": 0,
+    "task_runs_scanned": 0,
+    "task_runs_truncated": false
+  },
+  "task_runs": []
+}

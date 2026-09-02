@@ -1,0 +1,49 @@
+{
+  "analysis_summary": "Detected 2 anomalies in 50 log lines. Highest severity: high. Primary issues: high_error_rate, unusual_log_level_distribution",
+  "anomaly_details": {
+    "anomalies": [
+      {
+        "description": "High error rate detected: 60.00% (30/50 lines)",
+        "details": {
+          "error_patterns": {
+            "connection": 20,
+            "error": 10
+          },
+          "error_rate": 0.6,
+          "sample_errors": [
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z FATAL giving up after 2 retries",
+            "<TS>Z ERROR connection refused to db:5432",
+            "<TS>Z ERROR connection refused to db:5432"
+          ]
+        },
+        "severity": "high",
+        "type": "high_error_rate"
+      },
+      {
+        "description": "High proportion of severe logs: 60.00%",
+        "details": {
+          "log_level_distribution": {
+            "debug": 0,
+            "error": 20,
+            "fatal": 10,
+            "info": 10,
+            "warn": 10
+          },
+          "severe_log_ratio": 0.6
+        },
+        "severity": "high",
+        "type": "unusual_log_level_distribution"
+      }
+    ],
+    "log_statistics": {
+      "error_rate": 0.6,
+      "timestamp_coverage": "<VOLATILE>",
+      "total_lines": 50,
+      "unique_patterns": 4
+    },
+    "total_anomalies": 2
+  },
+  "anomaly_detected": true
+}

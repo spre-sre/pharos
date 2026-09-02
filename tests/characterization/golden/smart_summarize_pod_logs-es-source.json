@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "analysis_parameters": {
+      "focus_areas": [
+        "errors",
+        "warnings",
+        "performance"
+      ],
+      "max_context_tokens": 10000,
+      "summary_level": "detailed",
+      "time_segments": "<VOLATILE>"
+    },
+    "container_info": {
+      "k8s-logs-2026.01.01": 2
+    },
+    "namespace": "es-test-ns",
+    "pod_name": "*",
+    "processing_metrics": {
+      "estimated_tokens_used": 125,
+      "patterns_extracted": 1,
+      "processing_time_seconds": "<VOLATILE>",
+      "token_efficiency": "98.8% unused",
+      "total_log_lines": 2
+    }
+  },
+  "patterns": {
+    "errors": [
+      {
+        "content": "api-2 ERROR: connection refused",
+        "line_number": 2,
+        "matched_text": " connection refused",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      }
+    ]
+  },
+  "representative_samples": {},
+  "summary": {
+    "critical_issues": [],
+    "key_findings": [
+      {
+        "category": "errors",
+        "count": 1,
+        "sample_messages": [
+          "api-2 ERROR: connection refused"
+        ]
+      }
+    ],
+    "overview": {
+      "critical_categories": [],
+      "error_count": 1,
+      "performance_issues": 0,
+      "total_issues_found": 1,
+      "warning_count": 0
+    },
+    "pattern_counts": {
+      "errors": 1,
+      "performance": 0,
+      "warnings": 0
+    },
+    "recommendations": [],
+    "timeline_analysis": "<VOLATILE>"
+  },
+  "time_segments": "<VOLATILE>"
+}

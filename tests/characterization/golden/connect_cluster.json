@@ -1,0 +1,5 @@
+{
+  "code": "ref_outside_allowlist",
+  "error": "path ref outside configured credential_ref_roots",
+  "hint": "kubeconfig:<path>#<context> | secret:<path> | env:<VAR>"
+}

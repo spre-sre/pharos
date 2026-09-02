@@ -1,0 +1,26 @@
+{
+  "team-a": [
+    {
+      "labels": {
+        "pipelines.appstudio.openshift.io/type": "build",
+        "tekton.dev/pipeline": "build"
+      },
+      "name": "build-run-1",
+      "namespace": "team-a",
+      "pipeline": "build",
+      "start_time": "<VOLATILE>",
+      "status": "Succeeded"
+    },
+    {
+      "labels": {
+        "pipelines.appstudio.openshift.io/type": "build",
+        "tekton.dev/pipeline": "build"
+      },
+      "name": "build-run-2",
+      "namespace": "team-a",
+      "pipeline": "build",
+      "start_time": "<VOLATILE>",
+      "status": "Failed"
+    }
+  ]
+}

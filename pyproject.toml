@@ -1,0 +1,88 @@
+[project]
+# R2b/R3: the [project] name below is the published PyPI 0.9.3 distribution.
+# Renaming it would claim an unclaimed PyPI slot before the new remote exists.
+# Allowlisted by exact path+key in tests/test_ci_identity.py.
+name = "pharos-mcp-server"
+version = "0.9.3"
+description = "An open source MCP server empowering SREs with intelligent observability, predictive analytics, and AI-driven automation across Kubernetes, OpenShift, and Tekton environments."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [
+    {name = "Pharos Team"}
+]
+keywords = ["mcp", "kubernetes", "openshift", "tekton", "monitoring", "ai", "sre", "observability", "pipelines"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "aiohttp>=3.12.2",
+    "kubernetes>=32.0.1",
+    "mcp[cli]>=1.28.0,<2",  # hard dep on add_tool + send_tool_list_changed (consult R9); 2.0 removed mcp.server.fastmcp
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scikit-learn>=1.6.1",
+    "prometheus-client>=0.22.0",
+    "pyyaml>=6.0.2",
+    "requests>=2.31.0",
+    "python-dotenv>=1.1.0",
+    "pydantic>=2.11.5",
+    "uvicorn>=0.30.0",
+    "starlette>=0.30.0",
+    "networkx>=3.0",
+]
+[project.optional-dependencies]
+# dev mirrors [tool.uv] dev-dependencies so CI can use pip install -e ".[dev]"
+# without requiring a uv lockfile.
+dev = ["pytest>=7.0.0", "pytest-asyncio>=0.21.0"]
+# logan optional-dep removed (T4/step2): direct-reference dep (logan@git+...) no
+# longer needed after logan code block deferred; [tool.hatch.metadata] removed too.
+
+[project.urls]
+# R2b: new remote URL is unknown — point these at the real URL once the remote is
+# created and registered under the new owner.  TBD-NEW-REMOTE is a greppable marker.
+Homepage = "https://TBD-NEW-REMOTE"
+Repository = "https://TBD-NEW-REMOTE"
+Issues = "https://TBD-NEW-REMOTE/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    ".mcpregistry_*",
+    ".env",
+    ".env.*",
+    "*.pem",
+    "*.key",
+]
+
+[tool.hatch.build.targets.wheel.force-include]
+# Ensure no secrets are included
+
+# MCP Registry integration
+[tool.mcp]
+name = "io.github.geored/pharos"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+markers = [
+    "characterization: golden no-behavior-change suite (phase 0)",
+    "slow: tests that spawn a subprocess or are otherwise slower than unit tests",
+]

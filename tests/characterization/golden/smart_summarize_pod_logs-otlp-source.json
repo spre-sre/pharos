@@ -1,0 +1,108 @@
+{
+  "metadata": {
+    "analysis_parameters": {
+      "focus_areas": [
+        "errors",
+        "warnings",
+        "performance"
+      ],
+      "max_context_tokens": 10000,
+      "summary_level": "detailed",
+      "time_segments": "<VOLATILE>"
+    },
+    "container_info": {
+      "test-app": 3
+    },
+    "covered_window": [
+      "<TS>Z",
+      "<TS>Z"
+    ],
+    "namespace": "ns",
+    "pod_name": "*",
+    "processing_metrics": {
+      "estimated_tokens_used": 203,
+      "patterns_extracted": 3,
+      "processing_time_seconds": "<VOLATILE>",
+      "token_efficiency": "98.0% unused",
+      "total_log_lines": 3
+    },
+    "requested_window": [
+      "unbounded",
+      "<TS>Z"
+    ]
+  },
+  "patterns": {
+    "errors": [
+      {
+        "content": "ERROR: database connection timeout after 30s",
+        "line_number": 1,
+        "matched_text": " database connection timeout after 30s",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      }
+    ],
+    "performance": [
+      {
+        "content": "ERROR: database connection timeout after 30s",
+        "line_number": 1,
+        "matched_text": "after 30s",
+        "occurrence_count": 1,
+        "severity": "high",
+        "timestamp": "<VOLATILE>"
+      }
+    ],
+    "warnings": [
+      {
+        "content": "WARN: retrying database connection (attempt 1/3)",
+        "line_number": 2,
+        "matched_text": " retrying database connection (attempt 1/3)",
+        "occurrence_count": 1,
+        "severity": "medium",
+        "timestamp": "<VOLATILE>"
+      }
+    ]
+  },
+  "representative_samples": {},
+  "summary": {
+    "critical_issues": [],
+    "key_findings": [
+      {
+        "category": "errors",
+        "count": 1,
+        "sample_messages": [
+          "ERROR: database connection timeout after 30s"
+        ]
+      },
+      {
+        "category": "warnings",
+        "count": 1,
+        "sample_messages": [
+          "WARN: retrying database connection (attempt 1/3)"
+        ]
+      },
+      {
+        "category": "performance",
+        "count": 1,
+        "sample_messages": [
+          "ERROR: database connection timeout after 30s"
+        ]
+      }
+    ],
+    "overview": {
+      "critical_categories": [],
+      "error_count": 1,
+      "performance_issues": 1,
+      "total_issues_found": 3,
+      "warning_count": 1
+    },
+    "pattern_counts": {
+      "errors": 1,
+      "performance": 1,
+      "warnings": 1
+    },
+    "recommendations": [],
+    "timeline_analysis": "<VOLATILE>"
+  },
+  "time_segments": "<VOLATILE>"
+}

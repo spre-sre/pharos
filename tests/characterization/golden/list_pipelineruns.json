@@ -1,0 +1,20 @@
+[
+  {
+    "completed_at": "<VOLATILE>",
+    "duration": "<VOLATILE>",
+    "duration_seconds": "<VOLATILE>",
+    "name": "build-run-1",
+    "pipeline": "build",
+    "started_at": "<VOLATILE>",
+    "status": "Succeeded"
+  },
+  {
+    "completed_at": "<VOLATILE>",
+    "duration": "<VOLATILE>",
+    "duration_seconds": "<VOLATILE>",
+    "name": "build-run-2",
+    "pipeline": "build",
+    "started_at": "<VOLATILE>",
+    "status": "Failed"
+  }
+]

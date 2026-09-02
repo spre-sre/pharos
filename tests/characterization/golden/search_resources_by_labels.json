@@ -1,0 +1,151 @@
+{
+  "error_details": [],
+  "label_analysis": {
+    "common_labels": [
+      {
+        "frequency": 2,
+        "key": "app",
+        "values": [
+          "api-2",
+          "api-1"
+        ]
+      }
+    ],
+    "label_patterns": [
+      {
+        "examples": [
+          "appexample"
+        ],
+        "matching_resources": 2,
+        "pattern": "app*"
+      }
+    ],
+    "unique_labels": []
+  },
+  "namespace_distribution": [
+    {
+      "namespace": "team-a",
+      "resource_count": 2,
+      "resource_types": [
+        "Pod"
+      ]
+    }
+  ],
+  "recommendations": [],
+  "resources": [
+    {
+      "api_version": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "annotations": {},
+        "creation_timestamp": "<VOLATILE>",
+        "labels": {
+          "app": "api-1"
+        },
+        "name": "api-1",
+        "namespace": "team-a",
+        "resource_version": "",
+        "uid": ""
+      },
+      "owner_references": [],
+      "related_resources": [],
+      "spec": {
+        "containers": [
+          {
+            "name": "main",
+            "resources": {
+              "limits": {
+                "cpu": "500m",
+                "memory": "512Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              }
+            }
+          }
+        ],
+        "node_name": "node-1"
+      },
+      "status": {
+        "conditions": [
+          {
+            "message": null,
+            "reason": null,
+            "status": "True",
+            "type": "Ready"
+          }
+        ],
+        "phase": "Running"
+      }
+    },
+    {
+      "api_version": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "annotations": {},
+        "creation_timestamp": "<VOLATILE>",
+        "labels": {
+          "app": "api-2"
+        },
+        "name": "api-2",
+        "namespace": "team-a",
+        "resource_version": "",
+        "uid": ""
+      },
+      "owner_references": [],
+      "related_resources": [],
+      "spec": {
+        "containers": [
+          {
+            "name": "main",
+            "resources": {
+              "limits": {
+                "cpu": "500m",
+                "memory": "512Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              }
+            }
+          }
+        ],
+        "node_name": "node-1"
+      },
+      "status": {
+        "conditions": [
+          {
+            "message": null,
+            "reason": null,
+            "status": "False",
+            "type": "Ready"
+          }
+        ],
+        "phase": "Pending"
+      }
+    }
+  ],
+  "search_summary": {
+    "namespaces_searched": [
+      "team-a"
+    ],
+    "resource_type_counts": {
+      "pods": 2
+    },
+    "search_criteria": {
+      "label_selectors": [
+        {
+          "key": "app",
+          "operator": "equals",
+          "value": "api-1"
+        }
+      ],
+      "resource_types": [
+        "pods"
+      ]
+    },
+    "search_duration_ms": "<VOLATILE>",
+    "total_resources_found": 2
+  }
+}

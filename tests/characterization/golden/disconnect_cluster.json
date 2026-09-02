@@ -1,0 +1,5 @@
+{
+  "code": "unknown_source",
+  "error": "unknown kubernetes instance 'golden-nonexistent-instance'; known instances available via list_sources",
+  "hint": "disconnect_cluster removes runtime kubernetes instances; see list_sources"
+}

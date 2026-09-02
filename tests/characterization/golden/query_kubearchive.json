@@ -1,0 +1,21 @@
+{
+  "error": "KubeArchive endpoint not discovered",
+  "filters_applied": {
+    "container": null,
+    "field_selector": null,
+    "label_selector": null,
+    "name": null,
+    "namespace": "team-a",
+    "resource_type": "pipelinerun"
+  },
+  "kubearchive_status": "error",
+  "message": "KubeArchive unavailable",
+  "resources": [],
+  "suggestions": [
+    "Deploy KubeArchive (https://github.com/kubearchive/kubearchive)",
+    "Set KUBEARCHIVE_HOST to your KubeArchive API base URL",
+    "Example: export KUBEARCHIVE_HOST='https://kubearchive-api-server.kubearchive.svc.cluster.local:8081'"
+  ],
+  "time_range": "<VOLATILE>",
+  "total_count": 0
+}

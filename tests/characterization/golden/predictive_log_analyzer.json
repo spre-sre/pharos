@@ -1,0 +1,33 @@
+{
+  "anomaly_scores": [
+    {
+      "anomalous_log_lines": 0,
+      "component": "team-a",
+      "score": 0.122778,
+      "status": "normal",
+      "threshold": -0.5,
+      "total_log_lines": 50
+    }
+  ],
+  "model_info": {
+    "created_at": "<VOLATILE>",
+    "has_failure_labels": true,
+    "loaded_from_cache": false,
+    "model_id": "<VOLATILE>",
+    "persistence_enabled": true,
+    "training_samples": 50
+  },
+  "model_performance": {
+    "accuracy": 0.9,
+    "last_training_time": "<VOLATILE>",
+    "note": "Precision/recall require labeled validation data - not available",
+    "precision": null,
+    "recall": null
+  },
+  "predictions": [],
+  "trend_analysis": {
+    "error_rate_trend": "increasing",
+    "performance_trend": "stable",
+    "resource_trend": "stable"
+  }
+}

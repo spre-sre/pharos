@@ -1,0 +1,48 @@
+{
+  "extension_instances": {
+    "kubernetes": {
+      "konflux": "active",
+      "openshift": "active",
+      "tekton": "active"
+    }
+  },
+  "extensions": [
+    {
+      "configured": "on",
+      "name": "konflux",
+      "state": "active"
+    },
+    {
+      "configured": "on",
+      "name": "openshift",
+      "state": "active"
+    },
+    {
+      "configured": "on",
+      "name": "tekton",
+      "state": "active"
+    }
+  ],
+  "profile": "konflux",
+  "sources": [
+    {
+      "adapter": "kubernetes",
+      "capabilities": [
+        "Log",
+        "Event",
+        "Inventory"
+      ],
+      "connection": "connected",
+      "name": "kubernetes",
+      "state": "configured"
+    },
+    {
+      "adapter": "prometheus",
+      "capabilities": [
+        "Metric"
+      ],
+      "name": "prometheus",
+      "state": "configured"
+    }
+  ]
+}

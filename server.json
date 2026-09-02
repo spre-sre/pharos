@@ -1,0 +1,43 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.geored/pharos",
+  "title": "Pharos MCP Server",
+  "description": "AI-powered SRE observability for Kubernetes/OpenShift with 40+ Tekton debugging tools",
+  "version": "0.9.3",
+  "websiteUrl": "https://TBD-NEW-REMOTE",
+  "repository": {
+    "url": "https://TBD-NEW-REMOTE",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "lumino-mcp-server",
+      "_comment_identifier": "R2b/R3: kept as published PyPI 0.9.3 name; renaming claims an unclaimed PyPI slot before remote exists. Allowlisted in tests/test_ci_identity.py.",
+      "version": "0.9.3",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [],
+      "environmentVariables": [
+        {
+          "name": "KUBECONFIG",
+          "description": "Path to Kubernetes config file for cluster authentication",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "~/.kube/config"
+        }
+      ]
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "categories": ["cloud", "devops", "monitoring", "kubernetes"],
+      "tags": ["kubernetes", "openshift", "tekton", "sre", "observability", "pipelines", "log-analysis", "root-cause-analysis", "predictive-monitoring"],
+      "license": "Apache-2.0",
+      "language": "python"
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "insights": [
+    "Found 1 failed PipelineRuns (showing top 1 most recent)",
+    "Found 1 failed TaskRuns (showing top 1 most recent)",
+    "Pipeline success rate: 50.0% (0 still running, 0 cancelled excluded)"
+  ],
+  "pipeline_runs": {
+    "by_status": {
+      "Succeeded_False": 1,
+      "Succeeded_True": 1
+    },
+    "failures_by_namespace": {
+      "team-a": 1
+    },
+    "long_running": [],
+    "recent_cancelled": [],
+    "recent_failures": [
+      {
+        "message": "Tasks Completed: 3 (Failed)",
+        "name": "build-run-2",
+        "namespace": "team-a",
+        "reason": "Failed",
+        "start_time": "<VOLATILE>"
+      }
+    ],
+    "total": 2,
+    "total_cancelled": 0,
+    "total_failures": 1,
+    "total_long_running": 0
+  },
+  "sampling_info": {
+    "long_running_limit": 5,
+    "max_namespaces": 20,
+    "namespaces_sampled": 1,
+    "note": "Results are sampled to prevent timeout on large clusters \u2014 counts and success ratios reflect the sample, not a full census of the cluster",
+    "pipeline_runs_limit": 500,
+    "recent_failures_limit": 10,
+    "task_runs_limit_per_namespace": 100
+  },
+  "task_runs": {
+    "by_status": {
+      "Succeeded_False": 1
+    },
+    "failures_by_namespace": {
+      "team-a": 1
+    },
+    "recent_cancelled": [],
+    "recent_failures": [
+      {
+        "message": "No message",
+        "name": "build-run-2-build",
+        "namespace": "team-a",
+        "reason": "Failed",
+        "start_time": "<VOLATILE>"
+      }
+    ],
+    "total": 1,
+    "total_cancelled": 0,
+    "total_failures": 1
+  },
+  "timestamp": "<VOLATILE>"
+}

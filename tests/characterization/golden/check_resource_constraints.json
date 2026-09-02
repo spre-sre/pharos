@@ -1,0 +1,35 @@
+{
+  "container_issues": [
+    {
+      "container": "main",
+      "issue": "HighRestartCount",
+      "message": "Container has restarted 7 times",
+      "pod": "api-1",
+      "restart_count": 7
+    },
+    {
+      "container": "main",
+      "issue": "HighRestartCount",
+      "message": "Container has restarted 7 times",
+      "pod": "api-2",
+      "restart_count": 7
+    }
+  ],
+  "high_utilization_quotas": [],
+  "oom_killed_containers": [],
+  "pending_pods_due_to_resources": [
+    {
+      "issue": "Pending",
+      "message": "Pod is pending without specific reason",
+      "pod": "api-2",
+      "reason": "Unknown"
+    }
+  ],
+  "recommendations": [
+    "Review pending pods and their resource requests",
+    "Investigate containers with high restart counts"
+  ],
+  "resource_quotas": [],
+  "status": "Critical",
+  "summary": "Found: 1 pending/unschedulable pods, 2 container issues"
+}
