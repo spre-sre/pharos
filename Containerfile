@@ -8,7 +8,7 @@ FROM registry.access.redhat.com/ubi9/ubi:latest
 # Metadata labels following OCI and Red Hat best practices
 LABEL org.opencontainers.image.title="Pharos MCP Server" \
       org.opencontainers.image.description="MCP Server for Kubernetes, OpenShift, and Tekton monitoring and analysis" \
-      org.opencontainers.image.source="https://TBD-NEW-REMOTE" \
+      org.opencontainers.image.source="https://github.com/spre-sre/pharos" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.vendor="Pharos Project" \
       org.opencontainers.image.version="0.1.0" \
