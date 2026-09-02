@@ -1,5 +1,5 @@
 {
-  "pinned_commit": "c47ad736962c0e1dd926442055bc42cf88024653",
+  "pinned_commit": "dfaf53246ab452b5208443d103b56c5d7e4ca7c9",
   "tools": {
     "adaptive_namespace_investigation": {
       "description": "\n    Adaptive namespace investigation with progressive analysis and token budget management.\n\n    Best for medium namespaces (5-30 pods). Prioritizes failed/error pods, correlates events.\n\n    Args:\n        namespace: Kubernetes namespace to investigate.\n        investigation_query: What to investigate (default: \"investigate all logs and events for potential issues\").\n        max_pods: Maximum pods to analyze (default: 20).\n        focus_areas: Areas to focus on (default: [\"errors\", \"warnings\", \"performance\"]).\n        token_budget: Max tokens for investigation (default: 200000).\n        source: Kubernetes instance name (default \"\" = the default cluster).\n                Discovered/connected instances accepted; see list_sources.\n\n    Returns:\n        Dict: Pod analysis, event correlation, findings, and recommendations.\n            ``investigation_summary`` contains:\n            ``high_or_critical_events_found`` (int): Count of HIGH or CRITICAL severity\n                events found during the investigation (renamed from ``critical_events_found``\n                in Plan D).\n    ",

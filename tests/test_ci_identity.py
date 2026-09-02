@@ -8,7 +8,6 @@ docs/website/index.html).
 
 Literal set after T4:
   lumino-mcp-server  — the old distribution slug
-  spre-sre           — the old GitHub org
   LUMINO MCP Server  — all-caps product name (old)
   Lumino MCP Server  — mixed-case product name (old; see server.json:4/release.yml:40,42)
   lumino-dev         — the old .mcp.json dev server key
@@ -20,9 +19,7 @@ Retained strings that must NOT be in the forbidden set:
   'lumino-mcp' (logger tree — DEFERRED, retained for backward compat)
 
 EXCEPTIONS (R2b/R3 — allowlisted by exact relpath+substring):
-  pyproject.toml:  [project] name = "lumino-mcp-server"  — published PyPI 0.9.3 package;
-                   renaming claims an unclaimed PyPI slot before the new remote exists.
-  server.json:     "identifier": "lumino-mcp-server"     — same rationale; the MCP
+  server.json:     "identifier": "lumino-mcp-server"     — published PyPI 0.9.3 name; the MCP
                    registry cross-checks identifier against the PyPI package.
 """
 
@@ -50,9 +47,12 @@ _BRANDING_DOCS = [
 ]
 PATHS = sorted(set(_GITHUB_FILES + _CONFIG_FILES + _BRANDING_DOCS))
 
+# 'spre-sre' was removed from this list 2026-09-02: the team ratified
+# github.com/spre-sre/pharos as the new home (SPRE-6613), so the org name is
+# current identity, not stale. 'lumino-mcp-server' still catches stale repo
+# references (e.g. spre-sre/lumino-mcp-server).
 FORBIDDEN = [
     "lumino-mcp-server",
-    "spre-sre",
     "LUMINO MCP Server",
     "Lumino MCP Server",
     "Lumino MCP server",   # F4: lowercase-s variant slipped past the capital-S literal
@@ -62,7 +62,8 @@ FORBIDDEN = [
 # Exceptions: (relpath, substring) pairs where the literal is legitimately retained.
 # Allowlisted by exact path+key with R2b/R3 justification (see module docstring).
 _EXCEPTIONS: set[tuple[str, str]] = {
-    ("pyproject.toml", 'name = "lumino-mcp-server"'),  # R2b: published PyPI 0.9.3 name
+    # (pyproject.toml exception removed 2026-09-02 — renamed to pharos-mcp-server
+    # in the spre-sre/pharos initial import)
     ("server.json", '"identifier": "lumino-mcp-server"'),  # R2b: PyPI pkg cross-check
     # The _comment_identifier field in server.json also contains the literal:
     ("server.json", '"_comment_identifier"'),

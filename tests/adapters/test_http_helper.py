@@ -471,16 +471,18 @@ def test_reject_scripts_deep_body_raises_adapter_error_not_recursion():
 
 
 def test_enforce_body_limits_deep_body_raises_adapter_error_not_recursion():
-    """enforce_body_limits: 1500-deep body → AdapterError, not RecursionError.
+    """enforce_body_limits: 100_000-deep body → AdapterError, never RecursionError.
 
-    The body is under the 64 KB byte cap, so the guard must be the
-    RecursionError catch inside json.dumps, not the size check.
+    Depth 1500 sat exactly on CPython's C-recursion guard boundary
+    (Py_C_RECURSION_LIMIT), which moved across 3.12.x patch releases — the
+    test passed or failed depending on interpreter build. At 100_000 the
+    outcome is deterministic on every supported build: json.dumps either hits
+    the C recursion guard (wrapped to AdapterError) or, on a build with a
+    huge limit, serializes past the 64 KB cap (also AdapterError). The
+    invariant this test pins is the exception CONTRACT: callers always see
+    AdapterError, never a bare RecursionError escaping the §4.7 guards.
     """
-    body = _deep_body(1500)
-    # Confirm the body itself is well under the 64 KB cap (so the size guard
-    # is not the trigger — it's the RecursionError wrapping).
-    # (We don't call json.dumps here to avoid hitting the same issue in the
-    #  test setup; trust that a 1500-deep tiny dict is well under 64 KB.)
+    body = _deep_body(100_000)
     with pytest.raises(AdapterError):
         enforce_body_limits(body)
     # Extra check: must NOT propagate RecursionError
