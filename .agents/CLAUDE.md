@@ -56,7 +56,7 @@ headless/interactive execution against Pharos.*
 **Step 1 — Cluster data collection.** Name the target cluster first; pass `source=` on every
 Pharos call (see Core Operating Principle 4). Release-pipeline failures always mean checking at
 least two sources: the workload cluster AND `internal-services` on `kflux-c-prd-i01`
-(InternalRequest pipelines: signing, advisories, FBC).
+(InternalRequest pipelines: signing, advisories, FBC — API on port 443, not the usual 6443).
 
 **Log retrieval chain** — "logs unavailable" is only permitted after ALL of, in order:
 1. `get_pipelinerun_logs` / `analyze_failed_pipeline` (live)
@@ -96,16 +96,22 @@ lead, not a conclusion.
 
 ## Action Safety Chain
 
-Diagnostics are read-only, full stop. If a report ever recommends a mutating action for a human
-operator to take, the recommendation itself must state the full chain — no skipping any link:
+Diagnostics are read-only. **Any mutating action requires the full chain, no skipping any link:**
 
 **pre-check → duplicate check → execute (smallest blast radius) → verify (observe, don't infer)
 → revert plan known BEFORE executing → record.**
 
+This binds the agent's own actions, not just how a report gets written. Claude Code in this repo
+has `kubectl`/`oc` available — "read-only" is a practice the agent must hold itself to, not a
+technical restriction — so this chain is what actually stands between an investigation and an
+unintended mutation.
+
+- **Applies to report recommendations too:** a report that recommends a mutating action for a
+  human operator to take must state the full chain for that operator to follow.
 - **Multi-cluster blast radius:** an action described as looping over clusters needs an explicit
   cluster allowlist in the recommendation — never "all sources" implicitly.
-- **Credentials:** never echo tokens; never recommend widening RBAC, disabling a webhook, or
-  loosening validation as a shortcut.
+- **Credentials:** never echo tokens; never widen RBAC, disable a webhook, or loosen validation as
+  a shortcut.
 - **Simulation first:** for scaling/config-change recommendations, run
   `what_if_scenario_simulator(source=...)` and include its risk assessment in the writeup.
 
@@ -120,8 +126,9 @@ operator to take, the recommendation itself must state the full chain — no ski
 - Exactly-at-timeout failures with otherwise-fast normal runs usually mean "never started," not
   "too slow" — check for admission/scheduling delay before assuming a performance regression.
 - Routing sanity check per cluster: node count from the Kubernetes API should equal
-  `count(kube_node_info)` from `prometheus_query(source=...)` — a mismatch means the metrics
-  source is routed to the wrong cluster, not that nodes are actually missing.
+  `count(kube_node_info)` from `query_metrics(source=...)` (canonical alias for `prometheus_query`
+  — same function, either name works) — a mismatch means the metrics source is routed to the
+  wrong cluster, not that nodes are actually missing.
 
 ---
 
@@ -161,8 +168,12 @@ No skills have been authored yet — this directory currently holds only a place
 ## Runbooks
 
 Machine-readable YAML runbooks (`spre.agents/v1` schema) live in `.agents/runbooks/`. Each defines:
-- `spec.trigger.patterns`: log/event strings that indicate this failure
-- `spec.diagnostic_steps`: ordered tool calls with parameters (add `source=` when executing)
+- `spec.trigger.patterns` / `spec.trigger.events` / `spec.trigger.exit_codes`: signals that indicate this failure
+- `spec.diagnostic_steps`: ordered tool calls with parameters (add `source=` when executing).
+  A step may set `on_failure: skip` to continue past a tool that can't be reached, or a
+  `fallback:` to an alternate tool — see `.agents/AGENTS.md`'s "Runbooks" section for the full
+  schema; `tekton-timeout.yaml`'s fallback to `query_kubearchive` implements the Mandatory
+  Investigation Sequence's log-retrieval chain, not just this file's prose description of it.
 - `spec.analysis`: comparisons and checks to run against the collected evidence
 - `spec.remediation`: human-actionable steps (never auto-applied)
 - `spec.verification` / `spec.rollback` / `spec.escalation`

@@ -115,10 +115,18 @@ metadata:
 spec:
   trigger:
     patterns: [<log or event strings that indicate this failure>]
+    events: [<Kubernetes event reasons that indicate this failure, e.g. CrashLoopBackOff>]
+    exit_codes: [<container exit codes that indicate this failure, e.g. 137 for OOMKilled>]
   diagnostic_steps:
     - tool: <mcp_tool_name>
       args: {<param>: <value or {{ template }} variable>}
       extract: [<fields to pull from tool output>]
+      on_failure: skip  # optional — skip this step and continue if the tool call fails
+                         # (e.g. Prometheus not discoverable) instead of aborting the runbook
+      fallback:          # optional — an alternate step to run if this one comes up empty
+        condition: <when to use the fallback, e.g. "no pods found (garbage-collected)">
+        tool: <mcp_tool_name>
+        args: {<param>: <value>}
   analysis:
     compare: [<comparisons to make>]
     check: [<boolean conditions to evaluate>]
@@ -129,6 +137,12 @@ spec:
     condition: <when to escalate>
     target: <escalation destination>
 ```
+
+`on_failure` and `fallback` matter operationally, not just structurally: `tekton-timeout.yaml`'s
+`fallback` from `get_pipelinerun_logs` to `query_kubearchive` *is* the Mandatory Investigation
+Sequence's log-retrieval chain (see above) expressed in one runbook's diagnostic step — an agent
+that reads only this schema summary and skips the actual runbook YAML would miss that the chain
+is encoded there, not just described in prose.
 
 Four runbooks are currently defined: `certificate-expiry`, `crashloopbackoff`, `oomkilled`,
 `tekton-timeout`. A fifth (`imagepullbackoff`, SPRE-5974) is in progress and will land directly in
@@ -177,7 +191,7 @@ headless/interactive execution against Pharos.*
 **Step 1 — Cluster data collection.** Name the target cluster first; pass `source=` on every
 Pharos call (see "Multi-Cluster Dispatch" above). Release-pipeline failures always mean checking
 at least two sources: the workload cluster AND `internal-services` on `kflux-c-prd-i01`
-(InternalRequest pipelines: signing, advisories, FBC).
+(InternalRequest pipelines: signing, advisories, FBC — API on port 443, not the usual 6443).
 
 **Log retrieval chain** — "logs unavailable" is only permitted after ALL of, in order:
 1. `get_pipelinerun_logs` / `analyze_failed_pipeline` (live)
@@ -217,16 +231,22 @@ lead, not a conclusion.
 
 ## Action Safety Chain
 
-Diagnostics are read-only, full stop. If a report ever recommends a mutating action for a human
-operator to take, the recommendation itself must state the full chain — no skipping any link:
+Diagnostics are read-only. **Any mutating action requires the full chain, no skipping any link:**
 
 **pre-check → duplicate check → execute (smallest blast radius) → verify (observe, don't infer)
 → revert plan known BEFORE executing → record.**
 
+This binds the agent's own actions, not just how a report gets written. Claude Code in this repo
+has `kubectl`/`oc` available — "read-only" is a practice the agent must hold itself to, not a
+technical restriction — so this chain is what actually stands between an investigation and an
+unintended mutation.
+
+- **Applies to report recommendations too:** a report that recommends a mutating action for a
+  human operator to take must state the full chain for that operator to follow.
 - **Multi-cluster blast radius:** an action described as looping over clusters needs an explicit
   cluster allowlist in the recommendation — never "all sources" implicitly.
-- **Credentials:** never echo tokens; never recommend widening RBAC, disabling a webhook, or
-  loosening validation as a shortcut.
+- **Credentials:** never echo tokens; never widen RBAC, disable a webhook, or loosen validation as
+  a shortcut.
 - **Simulation first:** for scaling/config-change recommendations, run
   `what_if_scenario_simulator(source=...)` and include its risk assessment in the writeup.
 
@@ -241,8 +261,9 @@ operator to take, the recommendation itself must state the full chain — no ski
 - Exactly-at-timeout failures with otherwise-fast normal runs usually mean "never started," not
   "too slow" — check for admission/scheduling delay before assuming a performance regression.
 - Routing sanity check per cluster: node count from the Kubernetes API should equal
-  `count(kube_node_info)` from `prometheus_query(source=...)` — a mismatch means the metrics
-  source is routed to the wrong cluster, not that nodes are actually missing.
+  `count(kube_node_info)` from `query_metrics(source=...)` (canonical alias for `prometheus_query`
+  — same function, either name works) — a mismatch means the metrics source is routed to the
+  wrong cluster, not that nodes are actually missing.
 
 ---
 
