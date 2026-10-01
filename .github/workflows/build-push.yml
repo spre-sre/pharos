@@ -71,7 +71,7 @@ jobs:
             type=sha,prefix=
 
       - name: Build container image (always — validates Containerfile on every push)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Containerfile
@@ -84,7 +84,7 @@ jobs:
 
       - name: Push container image
         if: env.HAS_REGISTRY_CREDS == 'true' && github.event_name != 'pull_request'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Containerfile
