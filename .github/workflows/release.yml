@@ -36,7 +36,7 @@ jobs:
 
       # TODO: update the README link below when the new remote is known (R2b — TBD-NEW-REMOTE)
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           name: Pharos MCP Server v${{ steps.version.outputs.VERSION }}
           body: |
