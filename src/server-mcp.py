@@ -806,7 +806,7 @@ from helpers.prometheus import (
     _generate_query_suggestions,
 )
 from helpers.utils import _safe_compile_namespace_filter, _parse_time_parameter, _handle_api_exception, _get_fallback_cluster_health
-from helpers.utils import list_nodes_bounded
+from helpers.utils import list_nodes_bounded, _to_utc
 from helpers.utils import _get_active_node_names  # noqa: F401 - re-exported for test monkeypatch surface
 from helpers.event_analysis import (  # noqa: F401 - re-exported for test monkeypatch surface
     _compress_events_for_synthesis,
@@ -2196,6 +2196,11 @@ async def get_pipelinerun_logs(
     _gerr = _gate_extension("get_pipelinerun_logs", source)
     if _gerr:
         return _gerr
+    if since_time:
+        try:
+            _to_utc(since_time)
+        except (AttributeError, TypeError, ValueError):
+            return {"error": f"Invalid since_time {since_time!r}: use RFC3339, e.g. 2026-01-15T10:30:00Z"}
     # Build log filtering info for logging
     filter_info = []
     if since_time:
@@ -5371,6 +5376,10 @@ async def smart_summarize_pod_logs(
                 # lines after end_time once the logs are in.
                 if _window.end is not None:
                     _start = _window.start or (_window.end - timedelta(hours=1))
+                    if _start >= _window.end:
+                        return {"error": (
+                            f"Invalid time range: start {_start.isoformat()} is not before "
+                            f"end_time {_window.end.isoformat()}")}
                     _k8s_window = (_start, _window.end)
                     log_params['since_seconds'] = max(
                         1, int((datetime.now(timezone.utc) - _start).total_seconds()))
@@ -5409,6 +5418,15 @@ async def smart_summarize_pod_logs(
                 c: (_filter_logs_by_time_range(text, _k8s_window[1]) if isinstance(text, str) else text)
                 for c, text in raw_logs["logs"].items()
             }
+            if not any(isinstance(t, str) and t.strip() for t in raw_logs["logs"].values()):
+                hint = (" tail_lines selects the newest lines, which are all after end_time;"
+                        " use start_time instead." if tail_lines is not None else "")
+                return {
+                    "error": f"No log lines between {_k8s_window[0].isoformat()} and "
+                             f"{_k8s_window[1].isoformat()}.{hint}",
+                    "metadata": {"pod_name": pod_name, "namespace": namespace,
+                                 "requested_window": [_k8s_window[0].isoformat(), _k8s_window[1].isoformat()]},
+                }
 
         # Step 2: Process logs for the target container or combine all containers
         all_log_lines = []
@@ -6379,6 +6397,8 @@ async def get_etcd_logs(
         try:
             # Validate RFC3339 timestamp format
             parsed_since_time = datetime.fromisoformat(since_time.replace('Z', '+00:00'))
+            if parsed_since_time.tzinfo is None:  # naive = UTC (Kubernetes time)
+                parsed_since_time = parsed_since_time.replace(tzinfo=timezone.utc)
         except ValueError as e:
             logger.error(f"[{tool_name}] Invalid since_time format: {since_time}")
             return {"critical_error": f"Invalid since_time format '{since_time}'. Use RFC3339 format (e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00'): {str(e)}"}
@@ -6387,6 +6407,8 @@ async def get_etcd_logs(
         try:
             # Validate RFC3339 timestamp format
             parsed_until_time = datetime.fromisoformat(until_time.replace('Z', '+00:00'))
+            if parsed_until_time.tzinfo is None:  # naive = UTC (Kubernetes time)
+                parsed_until_time = parsed_until_time.replace(tzinfo=timezone.utc)
         except ValueError as e:
             logger.error(f"[{tool_name}] Invalid until_time format: {until_time}")
             return {"critical_error": f"Invalid until_time format '{until_time}'. Use RFC3339 format (e.g., '2024-01-15T11:30:00Z' or '2024-01-15T11:30:00'): {str(e)}"}

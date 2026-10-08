@@ -585,8 +585,9 @@ async def get_all_pod_logs(
     if since_time:
         try:
             since_dt = _to_utc(since_time)
-        except (TypeError, ValueError):
-            return {"time_filter_error": (
+        except (AttributeError, TypeError, ValueError):
+            # error_ prefix: callers treat it as an error, not a container log
+            return {"error_time_filter": (
                 f"Invalid since_time {since_time!r}: use RFC3339, e.g. 2026-01-15T10:30:00Z")}
 
     try:

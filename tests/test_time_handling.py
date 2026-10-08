@@ -104,7 +104,7 @@ def test_invalid_since_time_is_reported_not_ignored():
     result = asyncio.run(get_all_pod_logs("p", "ns", api, since_time="yesterday"))
 
     assert api.log_calls == [], "logs were read without the requested time filter"
-    assert "time_filter_error" in result and "yesterday" in result["time_filter_error"]
+    assert "error_time_filter" in result and "yesterday" in result["error_time_filter"]
 
 
 def test_tail_lines_with_since_seconds_kept():
@@ -264,3 +264,57 @@ async def test_smart_events_summary_tolerates_undated_event(server, monkeypatch)
     stamps = {e["event_string"][:12]: e["timestamp"] for e in result["events"]}
     assert None in stamps.values()
     assert any(v and v.startswith("2026-01-01T10:00:00") for v in stamps.values())
+
+
+# ── review follow-up ─────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_summarize_tail_lines_with_past_end_time_reports_why(server, monkeypatch):
+    end = datetime.now(timezone.utc) - timedelta(hours=24)
+
+    async def fake_get_pod_logs(namespace, pod_name, clients=None, **params):
+        return {"logs": {"main": f"{_iso_utc(datetime.now(timezone.utc))} INFO newest line"}}
+
+    monkeypatch.setattr(server, "get_pod_logs", fake_get_pod_logs)
+
+    result = await server.smart_summarize_pod_logs(
+        pod_name="p", namespace="ns", end_time=_iso_utc(end), tail_lines=100)
+
+    assert "error" in result and "tail_lines" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_summarize_start_after_end_is_an_error(server, monkeypatch):
+    end = datetime.now(timezone.utc) - timedelta(hours=24)
+
+    result = await server.smart_summarize_pod_logs(
+        pod_name="p", namespace="ns", start_time=_iso_utc(end + timedelta(hours=1)), end_time=_iso_utc(end))
+
+    assert "Invalid time range" in result.get("error", ""), result
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("since,until", [
+    ("2026-01-01T10:00:00Z", "2026-01-01T11:00:00"),
+    ("2026-01-01T10:00:00", "2026-01-01T11:00:00Z"),
+])
+async def test_etcd_mixed_naive_and_aware_range_does_not_raise(server, since, until):
+    result = await server.get_etcd_logs(since_time=since, until_time=until)
+
+    assert "can't compare" not in str(result)
+
+
+def test_event_span_ignores_undated_events():
+    from helpers.event_analysis import ProgressiveEventAnalyzer
+
+    events = [
+        {"timestamp": datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc), "severity": "HIGH", "category": "FAILURE",
+         "event_string": "a"},
+        {"timestamp": None, "severity": "HIGH", "category": "FAILURE", "event_string": "b"},
+        {"timestamp": datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc), "severity": "HIGH", "category": "FAILURE",
+         "event_string": "c"},
+    ]
+    patterns = ProgressiveEventAnalyzer(events)._identify_quick_patterns()
+
+    assert patterns.get("time_span") == "2:00:00"

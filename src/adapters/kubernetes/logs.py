@@ -14,7 +14,7 @@ from core.selector import Entity, Limit, Matchers, Native, SelectorNotSupported,
 from core.signals import LogBatch, LogRecord, Provenance
 from helpers.utils import get_all_pod_logs
 
-_SENTINELS = ("no_containers", "pod_error", "no_logs")
+_SENTINELS = ("no_containers", "pod_error", "no_logs", "error_time_filter")
 
 
 async def fetch_pod_logs(core_api, namespace: str, pod_name: str,

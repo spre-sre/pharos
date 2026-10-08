@@ -51,6 +51,8 @@ def _k8s_event_time_raw(event: Any) -> Optional[datetime]:
     if series is not None:
         candidates.append(getattr(series, "last_observed_time", None))
     candidates.append(getattr(event, "first_timestamp", None))
+    # Last resort: when the Event object itself was created.
+    candidates.append(getattr(getattr(event, "metadata", None), "creation_timestamp", None))
     for candidate in candidates:
         if candidate is not None:
             return candidate
@@ -504,16 +506,16 @@ class ProgressiveEventAnalyzer:
         patterns["category_distribution"] = category_counts
 
         # Time-based patterns
-        if len(self.timeline_sorted) > 1:
-            last_ts = _event_ts(self.timeline_sorted[-1])
-            first_ts = _event_ts(self.timeline_sorted[0])
-            if last_ts is not None and first_ts is not None:
-                time_span = last_ts - first_ts
-                patterns["time_span"] = str(time_span)
-                events_per_hour = len(self.classified_events) / max(
-                    time_span.total_seconds() / 3600, 0.1
-                )
-                patterns["event_rate"] = f"{events_per_hour:.1f} events/hour"
+        dated = [t for t in (_event_ts(e) for e in self.timeline_sorted) if t is not None]
+        if len(dated) > 1:
+            first_ts, last_ts = min(dated), max(dated)
+            # Undated events do not hide the span of the dated ones.
+            time_span = last_ts - first_ts
+            patterns["time_span"] = str(time_span)
+            events_per_hour = len(self.classified_events) / max(
+                time_span.total_seconds() / 3600, 0.1
+            )
+            patterns["event_rate"] = f"{events_per_hour:.1f} events/hour"
 
         # Common keywords
         all_text = " ".join(
@@ -668,20 +670,20 @@ class ProgressiveEventAnalyzer:
             "patterns": {},
         }
 
-        if len(sorted_events) > 1:
-            start_time = _event_ts(sorted_events[0])
-            end_time = _event_ts(sorted_events[-1])
+        dated = [t for t in (_event_ts(e) for e in sorted_events) if t is not None]
+        if len(dated) > 1:
+            start_time, end_time = min(dated), max(dated)
 
-            if start_time is not None and end_time is not None:
-                try:
-                    time_span = end_time - start_time
-                    temporal_analysis["time_span"] = str(time_span)
+            # Undated events do not hide the span of the dated ones.
+            try:
+                time_span = end_time - start_time
+                temporal_analysis["time_span"] = str(time_span)
 
-                    if time_span.total_seconds() > 0:
-                        rate = len(events) / (time_span.total_seconds() / 3600)
-                        temporal_analysis["event_rate"] = f"{rate:.1f} events/hour"
-                except (TypeError, ValueError, AttributeError):
-                    pass
+                if time_span.total_seconds() > 0:
+                    rate = len(events) / (time_span.total_seconds() / 3600)
+                    temporal_analysis["event_rate"] = f"{rate:.1f} events/hour"
+            except (TypeError, ValueError, AttributeError):
+                pass
 
         # Analyze patterns by hour
         hour_counts = {}
