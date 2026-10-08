@@ -67,6 +67,9 @@ _SPIKE_MIN_GAP = 5.0
 # EXHAUSTION_PERCENT but the data have not: a ramp still rises there, a
 # curve that levels off does not.
 _LOCAL_SAMPLES = 10
+# Newest samples flat and at most this many points under EXHAUSTION_PERCENT
+# (and within their noise of it) count as at the threshold now.
+_HOVER_MAX_GAP = 2.0
 
 # (resource_type, PromQL, result limit, contributing factors)
 _NODE_QUERIES = (
@@ -103,17 +106,18 @@ def _series_points(metric: Dict[str, Any]) -> List[Tuple[float, float]]:
     return points
 
 
-def _local_trend(points: List[Tuple[float, float]]) -> Optional[Tuple[float, float, float]]:
+def _local_trend(points: List[Tuple[float, float]]) -> Optional[Tuple[float, float, float, float]]:
     """(slope per second, trend value at the newest sample, median absolute
-    deviation from the trend) of a few points."""
+    deviation from the trend, upper 95 % bound of the slope) of a few points."""
     if len(points) < 3 or len({ts for ts, _ in points}) < 2:
         return None
     from scipy.stats import theilslopes
-    slope, intercept = theilslopes([v for _, v in points], [ts for ts, _ in points])[:2]
+    slope, intercept, _, high_slope = theilslopes([v for _, v in points], [ts for ts, _ in points])
     if not (math.isfinite(slope) and math.isfinite(intercept)):
         return None
     residuals = sorted(abs(v - (intercept + slope * ts)) for ts, v in points)
-    return float(slope), float(intercept + slope * points[-1][0]), float(residuals[len(residuals) // 2])
+    return (float(slope), float(intercept + slope * points[-1][0]),
+            float(residuals[len(residuals) // 2]), float(high_slope))
 
 
 def _usage_trend(metric: Dict[str, Any], now: datetime,
@@ -177,7 +181,7 @@ def _usage_trend(metric: Dict[str, Any], now: datetime,
         # decide on the newest samples alone
         local = _local_trend(points[-_LOCAL_SAMPLES:])
         if local is not None and local[0] > 0:
-            local_slope, local_level, _ = local
+            local_slope, local_level, _, _ = local
             seconds = max(0.0, (EXHAUSTION_PERCENT - local_level) / local_slope)
             if seconds <= horizon.total_seconds():
                 predicted_exhaustion = (now + timedelta(seconds=seconds)).isoformat()
@@ -187,11 +191,13 @@ def _usage_trend(metric: Dict[str, Any], now: datetime,
                 exhaustion_note = (f'not projected: the newest samples ({local_level:.1f} %) '
                                    f'rise too slowly to reach {EXHAUSTION_PERCENT:g} % within '
                                    f'the {horizon_label} horizon; usage is levelling off')
-        elif local is not None and EXHAUSTION_PERCENT - recent_mean <= 2 * local[2]:
-            # Hovering at the threshold: the gap is within the samples' noise
+        elif (local is not None and local[3] >= 0
+              and EXHAUSTION_PERCENT - local[1] <= min(2 * local[2], _HOVER_MAX_GAP)):
+            # Hovering at the threshold: not clearly falling, and the newest
+            # samples' trend value is within their noise of it
             predicted_exhaustion = now.isoformat()
             exhaustion_note = (f'at {EXHAUSTION_PERCENT:g} % now: trend value {level:.1f} %, newest '
-                               f'samples {recent_mean:.1f} % within their noise')
+                               f'samples {local[1]:.1f} % and flat')
         else:
             exhaustion_note = (f'not projected: the trend value {level:.1f} % is above the recent '
                                f'data (mean {recent_mean:.1f} %), which no longer rise')

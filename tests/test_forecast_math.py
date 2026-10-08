@@ -619,3 +619,33 @@ def test_flat_series_hovering_at_90_is_exhausted_now():
     now = datetime.now(timezone.utc)
     trend = rf._usage_trend(_ts_values(values), now, timedelta(hours=24), "24h")
     assert trend["predicted_exhaustion"] == now.isoformat(), trend
+
+
+def test_falling_series_after_a_peak_is_not_at_90_now():
+    """A daily peak at 96 % that has passed, now about 84 % and falling: the
+    whole-window trend is above 90 %, but this is not "at 90 % now"."""
+    noise = [4, -4, 2, -2]
+    values = [70 + 22 * math.sin(0.8 * math.pi * i / 49) + noise[(i + 1) % 4] for i in range(50)]
+    now = datetime.now(timezone.utc)
+    trend = rf._usage_trend(_ts_values(values), now, timedelta(hours=24), "24h")
+    assert trend["predicted_exhaustion"] is None, trend
+
+
+# Noisy samples of a daily peak that has passed (70 + 22 sin(...) + noise),
+# found by search: each is "at 90 % now" without one of the hover guards.
+_PEAK_PASSED_FALLING = [
+    71.2, 76.5, 72.1, 71.7, 72.4, 71.8, 76.0, 74.9, 75.0, 77.1, 81.6, 81.8, 80.2, 83.6, 82.0, 81.4, 83.8,
+    77.5, 87.3, 82.9, 80.4, 84.0, 91.7, 79.0, 92.0, 87.7, 92.7, 86.3, 88.2, 90.4, 94.9, 89.1, 86.4, 91.0,
+    92.8, 89.1, 88.6, 86.1, 98.7, 93.4, 96.7, 93.3, 93.6, 87.1, 92.4, 89.7, 92.0, 88.5, 91.7, 88.4]
+_PEAK_PASSED_NOISY = [
+    70.1, 77.0, 66.5, 82.5, 84.8, 71.2, 74.3, 77.4, 77.7, 80.4, 80.3, 89.5, 84.0, 83.4, 84.9, 85.9, 84.4,
+    94.7, 87.8, 94.1, 82.2, 89.4, 94.1, 84.7, 89.2, 83.5, 92.2, 90.9, 85.5, 85.0, 87.3, 87.9, 96.0, 87.2,
+    92.4, 94.9, 84.8, 89.1, 97.7, 98.4, 86.3, 85.6, 91.2, 93.9, 89.6, 84.2, 86.1, 81.4, 92.4, 88.9]
+
+
+@pytest.mark.parametrize("values", [_PEAK_PASSED_FALLING, _PEAK_PASSED_NOISY],
+                         ids=["newest-samples-clearly-falling", "newest-samples-more-than-2-points-under"])
+def test_hover_needs_flat_newest_samples_close_to_90(values):
+    now = datetime.now(timezone.utc)
+    trend = rf._usage_trend(_ts_values(values), now, timedelta(hours=24), "24h")
+    assert trend["predicted_exhaustion"] != now.isoformat(), trend
