@@ -23,6 +23,7 @@
   "investigation_summary": {
     "adaptive_strategy": "volume-based time windowing with progressive pod analysis",
     "critical_issues_found": 2,
+    "events_error": null,
     "high_or_critical_events_found": 2,
     "investigation_query": "investigate all logs and events for potential issues",
     "namespace": "team-a",

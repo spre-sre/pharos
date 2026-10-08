@@ -13,6 +13,7 @@ import yaml
 import time
 import base64
 import asyncio
+import math
 import functools
 import logging
 import requests
@@ -6269,7 +6270,7 @@ async def adaptive_namespace_investigation(
 
         failed_pods = {name: f["error"] for name, f in findings.items() if "error" in f}
         denied_pods = sum(1 for reason in failed_pods.values()
-                          if "forbidden" in reason.lower() or "403" in reason)
+                          if re.search(r"\(403\)|forbidden", reason, re.IGNORECASE))
         pods_analyzed = pods_attempted - len(failed_pods)
         events_error = events_result.get("error")
 
@@ -6284,6 +6285,7 @@ async def adaptive_namespace_investigation(
             "total_pods_found": total_pods,
             "pods_analyzed": pods_analyzed,
             "pods_failed": len(failed_pods),
+            "events_error": str(events_error) if events_error else None,
             "critical_issues_found": len(critical_issues),
             "high_or_critical_events_found": event_critical_count,
             "token_budget_used": f"{min(processor.get_usage_percentage(), 100.0):.1f}%",
@@ -6307,7 +6309,7 @@ async def adaptive_namespace_investigation(
             recommendations.extend(critical_issues[:5])  # Top 5 issues
 
         if pods_attempted < total_pods:
-            recommendations.append(f"Only analyzed {pods_attempted}/{total_pods} pods due to token constraints - consider focused investigation of remaining pods")
+            recommendations.append(f"Only attempted {pods_attempted}/{total_pods} pods (max_pods or token budget) - consider focused investigation of remaining pods")
 
         if (not critical_issues and pods_analyzed > 5 and event_critical_count == 0
                 and not failed_pods and not events_error):
@@ -9736,8 +9738,10 @@ async def resource_bottleneck_forecaster(
                     cpu_result = await prometheus_query(namespace_cpu_query, source=source)
                     if cpu_result.get("status") == "success" and cpu_result.get("data"):
                         data = cpu_result["data"]
+                        cpu_usage = None
                         if data and len(data) > 0 and 'value' in data[0]:
                             cpu_usage = float(data[0]['value'])
+                        if cpu_usage is not None and math.isfinite(cpu_usage):
 
                             # Add namespace-specific forecast
                             forecasts.append({
@@ -9745,7 +9749,8 @@ async def resource_bottleneck_forecaster(
                                 'resource_identifier': {'namespace': namespace, 'metric': 'cpu_usage_cores'},
                                 'current_usage': {'value': cpu_usage, 'unit': 'cores'},
                                 'predicted_exhaustion': None,  # Would need trend analysis
-                                'growth_rate': {'value': None, 'unit': 'cores_per_5min'},
+                                'growth_rate': {'value': None, 'unit': 'cores_per_5min',
+                                                'note': 'trend not computed: single instant reading'},
                                 'contributing_factors': ['pod_scaling', 'workload_changes']
                             })
 
@@ -9768,13 +9773,14 @@ async def resource_bottleneck_forecaster(
                                 if memory_usage_gb > 0:
                                     break
 
-                    if memory_usage_gb > 0:
+                    if memory_usage_gb > 0 and math.isfinite(memory_usage_gb):
                         forecasts.append({
                             'resource_type': 'namespace_memory',
                             'resource_identifier': {'namespace': namespace, 'metric': 'memory_usage_gb'},
                             'current_usage': {'value': memory_usage_gb, 'unit': 'GB'},
                             'predicted_exhaustion': None,  # Would need trend analysis
-                            'growth_rate': {'value': None, 'unit': 'GB_per_5min'},
+                            'growth_rate': {'value': None, 'unit': 'GB_per_5min',
+                                            'note': 'trend not computed: single instant reading'},
                             'contributing_factors': ['pod_scaling', 'memory_leaks', 'cache_growth']
                         })
 

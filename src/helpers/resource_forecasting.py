@@ -51,6 +51,8 @@ async def get_active_node_names_bounded(core_api,
 # Usage at or above this percent counts as exhausted.
 EXHAUSTION_PERCENT = 90.0
 _FIVE_MINUTES = 300.0
+# Trends that reach EXHAUSTION_PERCENT later than this are not projected.
+MAX_PROJECTION = timedelta(days=365)
 
 # (resource_type, PromQL, result limit, contributing factors)
 _NODE_QUERIES = (
@@ -108,15 +110,21 @@ def _usage_trend(metric: Dict[str, Any], now: datetime) -> Optional[Dict[str, An
             slope_per_second = float(slope)
 
     predicted_exhaustion = None
-    if slope_per_second and slope_per_second > 0 and current < EXHAUSTION_PERCENT:
+    if current >= EXHAUSTION_PERCENT:
+        predicted_exhaustion = now.isoformat()  # already exhausted
+    elif slope_per_second and slope_per_second > 0:
         seconds = (EXHAUSTION_PERCENT - current) / slope_per_second
-        predicted_exhaustion = (now + timedelta(seconds=seconds)).isoformat()
+        if seconds <= MAX_PROJECTION.total_seconds():
+            predicted_exhaustion = (now + timedelta(seconds=seconds)).isoformat()
 
-    return {
+    trend = {
         'current': current,
         'growth_per_5min': None if slope_per_second is None else slope_per_second * _FIVE_MINUTES,
         'predicted_exhaustion': predicted_exhaustion,
     }
+    if slope_per_second is None:
+        trend['growth_note'] = 'trend not computed: fewer than 3 samples at distinct times'
+    return trend
 
 
 async def _analyze_node_resources_new(trend_period: str, forecast_horizon: str, log, *, query_fn, core_api) -> List[Dict]:
@@ -150,37 +158,46 @@ async def _analyze_node_resources_new(trend_period: str, forecast_horizon: str, 
                     step="300s",
                     limit=limit,
                 )
-                if result.get("status") != "success" or not result.get("data"):
-                    continue
-
-                for metric in result["data"]:
-                    labels = metric.get('metric', {})
-                    node = labels.get('instance', 'unknown')
-
-                    # Filter out nodes that are no longer active
-                    if not _is_node_active(node, active_nodes):
-                        filtered_count += 1
-                        continue
-
-                    trend = _usage_trend(metric, end_time)
-                    if trend is None:
-                        continue
-
-                    identifier = {'node': node}
-                    if resource_type == 'disk':
-                        identifier['mountpoint'] = labels.get('mountpoint', 'unknown')
-                    identifier['metric'] = f'{resource_type}_utilization_percent'
-
-                    forecasts.append({
-                        'resource_type': resource_type,
-                        'resource_identifier': identifier,
-                        'current_usage': {'value': trend['current'], 'unit': 'percent'},
-                        'predicted_exhaustion': trend['predicted_exhaustion'],
-                        'growth_rate': {'value': trend['growth_per_5min'], 'unit': 'percent_per_5min'},
-                        'contributing_factors': list(factors),
-                    })
             except Exception as e:
                 log.warning(f"Error fetching {resource_type} metrics: {str(e)}")
+                continue
+            if result.get("status") != "success" or not result.get("data"):
+                continue
+
+            for metric in result["data"]:
+                labels = metric.get('metric', {})
+                node = labels.get('instance', 'unknown')
+
+                # Filter out nodes that are no longer active
+                if not _is_node_active(node, active_nodes):
+                    filtered_count += 1
+                    continue
+
+                # One bad series must not drop the others
+                try:
+                    trend = _usage_trend(metric, end_time)
+                except Exception as e:
+                    log.warning(f"Could not compute {resource_type} trend for {node}: {str(e)}")
+                    continue
+                if trend is None:
+                    continue
+
+                identifier = {'node': node}
+                if resource_type == 'disk':
+                    identifier['mountpoint'] = labels.get('mountpoint', 'unknown')
+                identifier['metric'] = f'{resource_type}_utilization_percent'
+
+                growth_rate = {'value': trend['growth_per_5min'], 'unit': 'percent_per_5min'}
+                if 'growth_note' in trend:
+                    growth_rate['note'] = trend['growth_note']
+                forecasts.append({
+                    'resource_type': resource_type,
+                    'resource_identifier': identifier,
+                    'current_usage': {'value': trend['current'], 'unit': 'percent'},
+                    'predicted_exhaustion': trend['predicted_exhaustion'],
+                    'growth_rate': growth_rate,
+                    'contributing_factors': list(factors),
+                })
 
         if filtered_count > 0:
             log.info(f"Filtered out {filtered_count} metrics from inactive/historical nodes")
@@ -196,31 +213,36 @@ async def _analyze_cluster_capacity_new(core_api, log, *, query_fn) -> Dict[str,
     """Analyze overall cluster capacity and health using Prometheus query method."""
     try:
         core_api = ReadOnlyK8sClient.wrap(core_api)
-        # Get current cluster resource allocation from Kubernetes API
-        nodes = await list_nodes_bounded(core_api)
-
+        # Get current cluster resource allocation from Kubernetes API; a
+        # failed listing or capacity parse (e.g. no RBAC for nodes) leaves the
+        # counts None and still reads usage from Prometheus
         total_cpu = 0
         total_memory = 0
-        total_nodes = len(nodes.items)
+        total_nodes = None
+        try:
+            nodes = await list_nodes_bounded(core_api)
+            for node in nodes.items:
+                if node.status and node.status.capacity:
+                    cpu_str = node.status.capacity.get('cpu', '0')
+                    memory_str = node.status.capacity.get('memory', '0Ki')
 
-        for node in nodes.items:
-            if node.status and node.status.capacity:
-                cpu_str = node.status.capacity.get('cpu', '0')
-                memory_str = node.status.capacity.get('memory', '0Ki')
+                    # Parse CPU (cores)
+                    if 'm' in cpu_str:
+                        total_cpu += int(cpu_str.replace('m', '')) / 1000
+                    else:
+                        total_cpu += int(cpu_str)
 
-                # Parse CPU (cores)
-                if 'm' in cpu_str:
-                    total_cpu += int(cpu_str.replace('m', '')) / 1000
-                else:
-                    total_cpu += int(cpu_str)
-
-                # Parse Memory (bytes)
-                if memory_str.endswith('Ki'):
-                    total_memory += int(memory_str[:-2]) * 1024
-                elif memory_str.endswith('Mi'):
-                    total_memory += int(memory_str[:-2]) * 1024 * 1024
-                elif memory_str.endswith('Gi'):
-                    total_memory += int(memory_str[:-2]) * 1024 * 1024 * 1024
+                    # Parse Memory (bytes)
+                    if memory_str.endswith('Ki'):
+                        total_memory += int(memory_str[:-2]) * 1024
+                    elif memory_str.endswith('Mi'):
+                        total_memory += int(memory_str[:-2]) * 1024 * 1024
+                    elif memory_str.endswith('Gi'):
+                        total_memory += int(memory_str[:-2]) * 1024 * 1024 * 1024
+            total_nodes = len(nodes.items)
+        except Exception as e:
+            log.warning(f"Could not read node capacity: {str(e)}")
+            nodes = None
 
         # Current cluster usage via Prometheus; None when it cannot be read
         # (never 0 %, which would read as an idle, healthy cluster)
@@ -271,11 +293,12 @@ async def _analyze_cluster_capacity_new(core_api, log, *, query_fn) -> Dict[str,
         return {
             "overall_health": overall_health,
             "total_nodes": total_nodes,
-            "total_cpu_cores": total_cpu,
-            "total_memory_gb": round(total_memory / (1024**3), 1),
+            "total_cpu_cores": total_cpu if nodes is not None else None,
+            "total_memory_gb": round(total_memory / (1024**3), 1) if nodes is not None else None,
             "current_cpu_usage": _percent(cpu_usage_percent),
             "current_memory_usage": _percent(memory_usage_percent),
             "data_source": {
+                "nodes": "unavailable" if nodes is None else "kubernetes",
                 "cpu": "unavailable" if cpu_usage_percent is None else "prometheus",
                 "memory": "unavailable" if memory_usage_percent is None else "prometheus",
             },
@@ -294,11 +317,13 @@ async def _analyze_cluster_capacity_new(core_api, log, *, query_fn) -> Dict[str,
         log.error(f"Error analyzing cluster capacity: {str(e)}")
         return {
             "overall_health": "unknown",
-            "total_nodes": 0,
-            "total_cpu_cores": 0,
-            "total_memory_gb": 0,
-            "current_cpu_usage": "unknown",
-            "current_memory_usage": "unknown",
+            "total_nodes": None,
+            "total_cpu_cores": None,
+            "total_memory_gb": None,
+            "current_cpu_usage": None,
+            "current_memory_usage": None,
+            "data_source": {"nodes": "unavailable", "cpu": "unavailable", "memory": "unavailable"},
+            "error": f"Cluster capacity analysis failed: {str(e)}",
             "most_constrained_resources": [],
             "fastest_growing_consumers": [],
             "capacity_runway": {}

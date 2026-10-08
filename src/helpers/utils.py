@@ -631,6 +631,7 @@ async def get_all_pod_logs(
             log_params['tail_lines'] = tail_lines
 
         # Loop through each container and fetch its logs
+        read_errors = {}
         for container_name in container_names:
             try:
                 # Set the container for this iteration
@@ -646,10 +647,20 @@ async def get_all_pod_logs(
             except Exception as e:
                 if hasattr(e, 'reason'):
                     logger.warning(f"Error reading logs for container {container_name} in pod {pod_name}: {e}")
-                    container_logs[container_name] = f"Error fetching logs: {e.reason}"
+                    status = getattr(e, 'status', None)
+                    reason = f"({status}) {e.reason}" if status else f"{e.reason}"
+                    container_logs[container_name] = f"Error fetching logs: {reason}"
                 else:
                     logger.warning(f"Unexpected error fetching logs for container {container_name} in pod {pod_name}: {e}")
-                    container_logs[container_name] = f"Unexpected error fetching logs: {str(e)}"
+                    reason = str(e)
+                    container_logs[container_name] = f"Unexpected error fetching logs: {reason}"
+                read_errors[container_name] = reason
+
+        # No container log could be read (e.g. pods/log forbidden, all
+        # containers waiting): an error, never error text posing as a log
+        if read_errors and len(read_errors) == len(container_names):
+            details = "; ".join(f"{name}: {reason}" for name, reason in read_errors.items())
+            return {"error_logs": f"Could not read logs of any container ({details})"}
 
     except Exception as e:
         if hasattr(e, 'reason'):

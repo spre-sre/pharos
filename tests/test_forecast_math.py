@@ -15,6 +15,7 @@ H14: namespace CPU was multiplied by 100 and shown as "cores", summed the
 import importlib.util
 import os
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -99,7 +100,7 @@ async def test_failed_usage_query_is_unknown_not_healthy(failure):
     assert out["overall_health"] == "unknown"
     assert out["current_cpu_usage"] is None
     assert out["current_memory_usage"] is None
-    assert out["data_source"] == {"cpu": "unavailable", "memory": "unavailable"}
+    assert out["data_source"] == {"nodes": "kubernetes", "cpu": "unavailable", "memory": "unavailable"}
     assert out["capacity_runway"]["cpu_runway_days"] is None
     assert out["capacity_runway"]["memory_runway_days"] is None
 
@@ -111,7 +112,7 @@ async def test_one_failed_query_does_not_hide_a_critical_one():
     assert out["overall_health"] == "critical"
     assert out["current_cpu_usage"] == "95.0%"
     assert out["current_memory_usage"] is None
-    assert out["data_source"] == {"cpu": "prometheus", "memory": "unavailable"}
+    assert out["data_source"] == {"nodes": "kubernetes", "cpu": "prometheus", "memory": "unavailable"}
 
 
 @pytest.mark.asyncio
@@ -188,10 +189,22 @@ async def test_predicted_exhaustion_follows_the_true_trend(monkeypatch):
     assert abs((exhaustion - expected).total_seconds()) < 0.02 * (expected - datetime.now(timezone.utc)).total_seconds() + 120
 
 
+@pytest.fixture
+def non_utc_host(monkeypatch):
+    """CI runners use UTC, where naive local time equals UTC; force a zone
+    where the old "naive now + Z" window is visibly wrong."""
+    monkeypatch.setenv("TZ", "Asia/Kolkata")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
 @pytest.mark.asyncio
-async def test_query_window_is_utc(monkeypatch):
+async def test_query_window_is_utc(monkeypatch, non_utc_host):
     seen = []
     await _node_forecast(monkeypatch, seen)
+    assert seen[0]["start_time"].endswith("+00:00")
     start = datetime.fromisoformat(seen[0]["start_time"].replace("Z", "+00:00"))
     end = datetime.fromisoformat(seen[0]["end_time"].replace("Z", "+00:00"))
     now = datetime.now(timezone.utc)
@@ -297,3 +310,95 @@ def test_nan_samples_are_skipped():
     trend = rf._usage_trend(metric, now)
     assert trend["current"] == 12.0
     assert trend["growth_per_5min"] == pytest.approx(1.0)
+
+
+# ── Review follow-ups ────────────────────────────────────────────────────────
+
+def test_already_exhausted_series_is_reported_now():
+    now = datetime.now(timezone.utc)
+    metric = {"values": [[1000, "92"], [1300, "93"], [1600, "94"]]}
+    trend = rf._usage_trend(metric, now)
+    assert trend["predicted_exhaustion"] == now.isoformat()
+
+
+def test_far_projection_is_not_reported_and_does_not_overflow():
+    now = datetime.now(timezone.utc)
+    # +1e-9 % per 5 minutes: exhaustion billions of years away
+    metric = {"values": [[1000, "10.000000000"], [1300, "10.000000001"], [1600, "10.000000002"]]}
+    trend = rf._usage_trend(metric, now)
+    assert trend["predicted_exhaustion"] is None
+
+
+def test_too_few_samples_gives_a_growth_note():
+    trend = rf._usage_trend({"values": [[1000, "10"], [1300, "11"]]}, datetime.now(timezone.utc))
+    assert trend["growth_per_5min"] is None
+    assert "fewer than 3" in trend["growth_note"]
+
+
+@pytest.mark.asyncio
+async def test_one_bad_series_does_not_drop_the_others(monkeypatch):
+    async def no_active_filter(core_api, request_timeout=30.0):
+        return None
+
+    async def query_fn(query, **kwargs):
+        if "node_filesystem" not in query:
+            return {"status": "success", "data": []}
+        return {"status": "success", "data": [
+            {"metric": {"instance": "n1", "mountpoint": "/"},
+             "values": [[1000, "10"], [1300, "11"], [1600, "12"]]},
+            {"metric": {"instance": "n2", "mountpoint": "/"}, "values": "not a list"},
+            {"metric": {"instance": "n3", "mountpoint": "/"},
+             "values": [[1000, "20"], [1300, "21"], [1600, "22"]]},
+        ]}
+
+    real_trend = rf._usage_trend
+
+    def flaky_trend(metric, now):
+        if metric["metric"]["instance"] == "n2":
+            raise OverflowError("date value out of range")
+        return real_trend(metric, now)
+
+    monkeypatch.setattr(rf, "get_active_node_names_bounded", no_active_filter)
+    monkeypatch.setattr(rf, "_usage_trend", flaky_trend)
+    out = await rf._analyze_node_resources_new("7d", "24h", _Log(), query_fn=query_fn, core_api=None)
+    assert sorted(f["resource_identifier"]["node"] for f in out) == ["n1", "n3"]
+
+
+@pytest.mark.asyncio
+async def test_node_listing_failure_still_reads_usage():
+    class _NoNodes:
+        def list_node(self, **kwargs):
+            raise RuntimeError("nodes is forbidden")
+
+    out = await rf._analyze_cluster_capacity_new(_NoNodes(), _Log(), query_fn=_capacity_query_fn("95.0", "40.0"))
+    assert out["overall_health"] == "critical"
+    assert out["total_nodes"] is None and out["total_cpu_cores"] is None
+    assert out["data_source"]["nodes"] == "unavailable"
+    assert out["current_cpu_usage"] == "95.0%"
+
+
+@pytest.mark.asyncio
+async def test_namespace_growth_has_a_note(server, monkeypatch):
+    forecasts, _ = await _namespace_forecasts(server, monkeypatch, "team-a")
+    for f in forecasts:
+        assert f["growth_rate"]["note"], f
+
+
+@pytest.mark.asyncio
+async def test_namespace_nan_cpu_is_dropped(server, monkeypatch):
+    async def fake_prom(query, **kwargs):
+        if "container_cpu_usage_seconds_total" in query:
+            return _instant("NaN")
+        return {"status": "success", "data": []}
+
+    async def nothing(*a, **k):
+        return []
+
+    async def no_overview(*a, **k):
+        return {"overall_health": "unknown"}
+
+    monkeypatch.setattr(server, "prometheus_query", fake_prom)
+    monkeypatch.setattr(server, "_analyze_node_resources_new", nothing)
+    monkeypatch.setattr(server, "_analyze_cluster_capacity_new", no_overview)
+    result = await server.resource_bottleneck_forecaster(namespaces=["team-a"], resource_types=["cpu"])
+    assert [f for f in result["forecasts"] if f["resource_type"] == "namespace_cpu"] == []

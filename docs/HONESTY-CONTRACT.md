@@ -49,9 +49,10 @@ adoption (D2, `grep -c '"scan_coverage"' src/server-mcp.py` → 0).
    `scanned > discovered`. The current sole call site (`server-mcp.py`, inside
    `adaptive_namespace_investigation`) sits inside a `try: … except Exception` block that
    discards the entire result and returns only an error string. The call is safe by
-   construction today (`scanned = pods_analyzed` increments only over
-   `prioritized_pods[:min(max_pods, total_pods)]`, so `scanned <= discovered` always
-   holds). Plan D adopters MUST either (a) guarantee the same invariant by construction,
+   construction today (`pods_attempted` increments only over
+   `prioritized_pods[:min(max_pods, total_pods)]`, and `scanned = pods_analyzed =
+   pods_attempted - failed`, with `denied + skipped = failed`, so
+   `scanned <= discovered` always holds). Plan D adopters MUST either (a) guarantee the same invariant by construction,
    or (b) wrap the `build_coverage(...)` call so that a programming error in the count
    arguments raises visibly rather than discarding an otherwise-complete investigation.
 

@@ -26,15 +26,24 @@
     }
   ],
   "cluster_overview": {
-    "capacity_runway": {},
-    "current_cpu_usage": "unknown",
-    "current_memory_usage": "unknown",
+    "capacity_runway": {
+      "cpu_runway_days": null,
+      "memory_runway_days": null,
+      "note": "Cluster runway is not computed from a single reading; see predicted_exhaustion in the per-node forecasts"
+    },
+    "current_cpu_usage": null,
+    "current_memory_usage": null,
+    "data_source": {
+      "cpu": "unavailable",
+      "memory": "unavailable",
+      "nodes": "unavailable"
+    },
     "fastest_growing_consumers": [],
     "most_constrained_resources": [],
     "overall_health": "unknown",
-    "total_cpu_cores": 0,
-    "total_memory_gb": 0,
-    "total_nodes": 0
+    "total_cpu_cores": null,
+    "total_memory_gb": null,
+    "total_nodes": null
   },
   "forecasts": [
     {

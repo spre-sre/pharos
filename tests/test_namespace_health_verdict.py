@@ -11,8 +11,10 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from kubernetes.client.rest import ApiException
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC = REPO_ROOT / "src"
@@ -224,3 +226,93 @@ async def test_conservative_all_clean_reports_no_issues(server, monkeypatch):
 
     assert result["overview"]["pods_failed"] == 0
     assert "No critical issues detected in sampled pods" in result["recommendations"]
+
+
+# ── End to end: a real pods/log 403 from the Kubernetes client ──────────────
+# get_all_pod_logs used to store "Error fetching logs: Forbidden" as the
+# container's log text, so smart_summarize_pod_logs analysed the error string
+# as a log line and never returned {"error": ...}.
+
+class _ForbiddenLogsCore:
+    def read_namespaced_pod(self, name, namespace, **kwargs):
+        container = SimpleNamespace(name="main")
+        return SimpleNamespace(spec=SimpleNamespace(containers=[container]),
+                               status=SimpleNamespace(start_time=None))
+
+    def read_namespaced_pod_log(self, *args, **kwargs):
+        raise ApiException(status=403, reason="Forbidden")
+
+
+def _patch_forbidden_cluster(server, monkeypatch):
+    real_get_pod_logs = server.get_pod_logs
+    clients = SimpleNamespace(core_api=_ForbiddenLogsCore())
+
+    async def get_pod_logs(*args, **kwargs):
+        kwargs["clients"] = clients
+        return await real_get_pod_logs(*args, **kwargs)
+
+    async def mock_pods(namespace, **kwargs):
+        return _PODS
+
+    async def mock_events(*args, **kwargs):
+        return _QUIET_EVENTS
+
+    monkeypatch.setattr(server, "get_pod_logs", get_pod_logs)
+    monkeypatch.setattr(server, "list_pods_in_namespace", mock_pods)
+    monkeypatch.setattr(server, "smart_get_namespace_events", mock_events)
+
+
+@pytest.mark.asyncio
+async def test_e2e_forbidden_pod_logs_are_an_error(server, monkeypatch):
+    _patch_forbidden_cluster(server, monkeypatch)
+
+    result = await server.smart_summarize_pod_logs(namespace="team-a", pod_name="pod-0", summary_level="brief")
+
+    assert "error" in result, result
+    assert "Forbidden" in result["error"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("focus_areas", [None, ["performance"]])
+async def test_e2e_adaptive_forbidden_is_denied_not_healthy(server, monkeypatch, focus_areas):
+    _patch_forbidden_cluster(server, monkeypatch)
+
+    result = await server.adaptive_namespace_investigation(namespace="team-a", focus_areas=focus_areas)
+
+    assert result["investigation_summary"]["pods_analyzed"] == 0
+    assert result["critical_issues"] == []  # the error text is not a log finding
+    assert not _says_healthy(result["recommendations"]), result["recommendations"]
+    coverage = result["adaptive_metadata"]["coverage"]
+    assert (coverage["scanned"], coverage["denied"], coverage["verdict"]) == (0, 8, "none")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("focus_areas", [None, ["performance"]])
+async def test_e2e_conservative_forbidden_is_not_healthy(server, monkeypatch, focus_areas):
+    _patch_forbidden_cluster(server, monkeypatch)
+
+    result = await server.conservative_namespace_overview(namespace="team-a", focus_areas=focus_areas)
+
+    assert result["overview"]["pods_analyzed"] == 0
+    assert result["critical_issues"] == []
+    assert not _says_healthy(result["recommendations"]), result["recommendations"]
+
+
+@pytest.mark.asyncio
+async def test_adaptive_events_error_is_in_the_summary(server, monkeypatch):
+    _patch(server, monkeypatch, analysis=_CLEAN_ANALYSIS,
+           events={"error": "Failed to fetch events: (403) Forbidden"})
+
+    result = await server.adaptive_namespace_investigation(namespace="team-a")
+
+    assert "Forbidden" in result["investigation_summary"]["events_error"]
+
+
+@pytest.mark.asyncio
+async def test_denied_count_ignores_403_inside_names(server, monkeypatch):
+    _patch(server, monkeypatch, analysis={"error": 'Failed to retrieve logs: pods "build-4031" not found'})
+
+    result = await server.adaptive_namespace_investigation(namespace="team-a")
+
+    coverage = result["adaptive_metadata"]["coverage"]
+    assert (coverage["denied"], coverage["skipped"]) == (0, 8)
