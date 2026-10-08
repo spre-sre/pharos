@@ -45,6 +45,15 @@ except ImportError:
     from src.core.readonly_client import ReadOnlyCoreV1, ReadOnlyK8sClient
 
 
+def _to_utc(value):
+    """Parse an ISO string or datetime to an aware UTC datetime (naive = UTC)."""
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def calculate_duration(start_time, end_time, use_current_if_missing: bool = False) -> str:
     """
     Calculate duration between two timestamps.
@@ -65,31 +74,15 @@ def calculate_duration(start_time, end_time, use_current_if_missing: bool = Fals
     is_running = False
     if not end_time or end_time == "unknown":
         if use_current_if_missing:
-            end_time = datetime.now(tz=None)
+            end_time = datetime.now(timezone.utc)
             is_running = True
         else:
             return "unknown"
 
     try:
-        if isinstance(start_time, str):
-            start = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-        else:
-            start = start_time
-
-        if isinstance(end_time, str):
-            end = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
-        elif isinstance(end_time, datetime):
-            # Make timezone-aware if start is timezone-aware
-            if start.tzinfo is not None and end_time.tzinfo is None:
-                from datetime import timezone
-                end = end_time.replace(tzinfo=timezone.utc)
-            else:
-                end = end_time
-        else:
-            end = end_time
-
-        duration = end - start
-        seconds = duration.total_seconds()
+        # Kubernetes timestamps are UTC; compare in UTC so the host time zone
+        # never changes the result (naive values are treated as UTC).
+        seconds = (_to_utc(end_time) - _to_utc(start_time)).total_seconds()
 
         if seconds < 60:
             duration_str = f"{seconds:.2f} seconds"
@@ -127,29 +120,12 @@ def calculate_duration_seconds(start_time, end_time, use_current_if_missing: boo
 
     if not end_time or end_time == "unknown":
         if use_current_if_missing:
-            end_time = datetime.now(tz=None)
+            end_time = datetime.now(timezone.utc)
         else:
             return None
 
     try:
-        if isinstance(start_time, str):
-            start = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-        else:
-            start = start_time
-
-        if isinstance(end_time, str):
-            end = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
-        elif isinstance(end_time, datetime):
-            if start.tzinfo is not None and end_time.tzinfo is None:
-                from datetime import timezone
-                end = end_time.replace(tzinfo=timezone.utc)
-            else:
-                end = end_time
-        else:
-            end = end_time
-
-        duration = end - start
-        return int(duration.total_seconds())
+        return int((_to_utc(end_time) - _to_utc(start_time)).total_seconds())
     except Exception:
         return None
 
@@ -604,6 +580,15 @@ async def get_all_pod_logs(
     k8s_core_api = ReadOnlyCoreV1.wrap(k8s_core_api)
     container_logs = {}
 
+    # A time filter that cannot be applied is an error, never "read everything".
+    since_dt = None
+    if since_time:
+        try:
+            since_dt = _to_utc(since_time)
+        except (TypeError, ValueError):
+            return {"time_filter_error": (
+                f"Invalid since_time {since_time!r}: use RFC3339, e.g. 2026-01-15T10:30:00Z")}
+
     try:
         # Get the pod object to find its containers
         pod = await k8s_call(
@@ -633,22 +618,15 @@ async def get_all_pod_logs(
         # Add optional time/line filtering parameters
         # Note: Kubernetes Python client does NOT support since_time parameter
         # (see https://github.com/kubernetes-client/python/issues/1351)
-        # We must convert since_time to since_seconds
-        if since_time:
-            try:
-                # Parse RFC3339 timestamp and convert to seconds from now
-                from datetime import timezone
-                since_dt = datetime.fromisoformat(since_time.replace("Z", "+00:00"))
-                now = datetime.now(timezone.utc)
-                delta = now - since_dt
-                computed_since_seconds = max(1, int(delta.total_seconds()))
-                log_params['since_seconds'] = computed_since_seconds
-                logger.debug(f"Converted since_time '{since_time}' to since_seconds={computed_since_seconds}")
-            except Exception as e:
-                logger.warning(f"Failed to parse since_time '{since_time}': {e}, ignoring filter")
+        # We must convert since_time to since_seconds (validated above).
+        if since_dt is not None:
+            computed_since_seconds = max(1, int((datetime.now(timezone.utc) - since_dt).total_seconds()))
+            log_params['since_seconds'] = computed_since_seconds
+            logger.debug(f"Converted since_time '{since_time}' to since_seconds={computed_since_seconds}")
         elif since_seconds:
             log_params['since_seconds'] = since_seconds
-        elif tail_lines:
+        # tail_lines combines with a time filter (the API applies both).
+        if tail_lines:
             log_params['tail_lines'] = tail_lines
 
         # Loop through each container and fetch its logs

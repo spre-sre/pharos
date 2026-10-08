@@ -17,7 +17,7 @@ import functools
 import logging
 import requests
 import aiohttp
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union, Callable
 from mcp.server.fastmcp import FastMCP, Context
@@ -3036,7 +3036,7 @@ async def smart_get_namespace_events(
                         "severity": event["severity"],
                         "category": event["category"],
                         "relevance_score": round(event["relevance_score"], 2),
-                        "timestamp": event["timestamp"].isoformat(),
+                        "timestamp": event["timestamp"].isoformat() if event.get("timestamp") else None,
                         "token_estimate": event["token_estimate"]
                     }
                     for event in selected_events
@@ -5299,6 +5299,7 @@ async def smart_summarize_pod_logs(
         _window = make_time_window(
             since_seconds=since_seconds, time_period=time_period,
             start_time=start_time, end_time=end_time)
+        _k8s_window = None  # (start, end) when end_time bounds the k8s path
 
         if _log_adapter is not None:
             # FILE/OTLP-SOURCE PATH: bypass k8s entirely (no volume estimate).
@@ -5365,6 +5366,17 @@ async def smart_summarize_pod_logs(
                 log_params = time_config['log_params'].copy()
                 time_info = time_config['time_info']
 
+                # end_time (H08): the API has no "until", so read back to the
+                # window start (end_time alone = the hour before it) and drop
+                # lines after end_time once the logs are in.
+                if _window.end is not None:
+                    _start = _window.start or (_window.end - timedelta(hours=1))
+                    _k8s_window = (_start, _window.end)
+                    log_params['since_seconds'] = max(
+                        1, int((datetime.now(timezone.utc) - _start).total_seconds()))
+                    time_info = {**time_info, 'window_start': _start.isoformat(),
+                                 'window_end': _window.end.isoformat()}
+
                 if tail_lines is not None:
                     log_params['tail_lines'] = tail_lines
 
@@ -5390,6 +5402,12 @@ async def smart_summarize_pod_logs(
             return {
                 "error": "No logs found for the specified pod",
                 "metadata": {"pod_name": pod_name, "namespace": namespace}
+            }
+
+        if _k8s_window is not None:
+            raw_logs["logs"] = {
+                c: (_filter_logs_by_time_range(text, _k8s_window[1]) if isinstance(text, str) else text)
+                for c, text in raw_logs["logs"].items()
             }
 
         # Step 2: Process logs for the target container or combine all containers
@@ -5504,6 +5522,10 @@ async def smart_summarize_pod_logs(
                 **({"requested_window": list(_prov.requested_window),
                     "covered_window": list(_covered)}
                    if _covered is not None else {}),
+                # Only when end_time bounds the k8s path, so other k8s goldens
+                # stay byte-identical.
+                **({"requested_window": [_k8s_window[0].isoformat(), _k8s_window[1].isoformat()]}
+                   if _k8s_window is not None else {}),
             }
         }
 
@@ -7231,10 +7253,14 @@ async def advanced_event_analytics(
             if isinstance(ts_raw, datetime):
                 ts = ts_raw
             else:
+                # Undated stays undated (None): a now() placeholder made old or
+                # unparseable events look current and mixed naive/aware times.
                 try:
-                    ts = datetime.fromisoformat(ts_raw)
+                    ts = datetime.fromisoformat(str(ts_raw).replace("Z", "+00:00"))
                 except (ValueError, TypeError):
-                    ts = datetime.now()
+                    ts = None
+            if ts is not None and ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
             events_data.append({
                 "event_string": event.get("event_string", ""),
                 "severity": event.get("severity"),
