@@ -434,16 +434,17 @@ def test_levelling_off_curve_is_not_already_exhausted():
     trend = rf._usage_trend({"values": values}, now)
     assert "already exhausted" not in (trend.get("exhaustion_note") or "")
     assert trend["predicted_exhaustion"] != now.isoformat()
+    assert trend["predicted_exhaustion"] is None or "above the recent data" not in trend["exhaustion_note"]
 
 
-def test_projection_starts_from_the_current_value():
-    """A ramp to 95 % that drops to 40 %: projected from 40 %, not from the trend."""
+def test_drop_at_the_end_is_not_exhausted_or_projected():
+    """A ramp to 95 % that drops to 40 %: the trend is above the data, so
+    neither "exhausted now" nor a forecast from the trend."""
     now = datetime.now(timezone.utc)
     values = [[1000 + 300 * i, str(50 + 5 * i)] for i in range(10)] + [[4000, "40"]]
     trend = rf._usage_trend({"values": values}, now)
-    exhaustion = datetime.fromisoformat(trend["predicted_exhaustion"])
-    seconds = (90 - 40) / (trend["growth_per_5min"] / 300)
-    assert abs((exhaustion - now).total_seconds() - seconds) < 1
+    assert trend["predicted_exhaustion"] is None
+    assert "above the recent data" in trend["exhaustion_note"]
 
 
 def test_two_points_cannot_be_exhausted_on_one_hot_sample():
@@ -562,3 +563,39 @@ def test_spike_below_the_threshold_creates_no_trend():
     trend = rf._usage_trend({"values": values}, now)
     assert trend["predicted_exhaustion"] is None
     assert "not growing" in trend["exhaustion_note"]
+
+
+def _ts_values(values, step=300):
+    return {"values": [[1000 + step * i, str(v)] for i, v in enumerate(values)]}
+
+
+def test_noisy_ramp_crossing_90_is_forecast_not_a_spike():
+    """60 + 0.6 % per 5 min with noise; the newest sample just crossed 90 %."""
+    noise = [0.5, -0.7, 0.2, -0.3, 0.6, -0.5, 0.1, -0.6, 0.4, -0.2]
+    values = [60 + 0.6 * i + noise[i % 10] for i in range(49)] + [90.4]
+    now = datetime.now(timezone.utc)
+    trend = rf._usage_trend(_ts_values(values), now, timedelta(hours=24), "24h")
+    assert trend["predicted_exhaustion"] is not None
+    assert "spike" not in (trend.get("exhaustion_note") or "")
+    assert datetime.fromisoformat(trend["predicted_exhaustion"]) - now < timedelta(minutes=30)
+
+
+def test_noisy_flat_series_with_one_85_sample_is_not_moved_forward():
+    """The projection starts from the trend level, not from one high sample."""
+    base = [60 + (2 if i % 2 else -2) + 0.01 * i for i in range(49)]
+    now = datetime.now(timezone.utc)
+    quiet = rf._usage_trend(_ts_values(base + [62.49], step=72), now, timedelta(hours=24), "24h")
+    hot = rf._usage_trend(_ts_values(base + [85.0], step=72), now, timedelta(hours=24), "24h")
+    assert quiet["predicted_exhaustion"] is None
+    assert hot["predicted_exhaustion"] is None
+
+
+def test_small_jump_on_a_clean_ramp_is_not_a_spike():
+    """With no noise, any gap is many noise units; a jump of a few points
+    over a rising trend is still the trend crossing 90 %, not a spike."""
+    values = [60 + 0.6 * i for i in range(49)] + [92.4]   # trend value at the end: 89.4 %
+    now = datetime.now(timezone.utc)
+    trend = rf._usage_trend(_ts_values(values), now, timedelta(hours=24), "24h")
+    assert "spike" not in (trend.get("exhaustion_note") or "")
+    assert trend["predicted_exhaustion"] is not None
+    assert datetime.fromisoformat(trend["predicted_exhaustion"]) - now < timedelta(minutes=30)

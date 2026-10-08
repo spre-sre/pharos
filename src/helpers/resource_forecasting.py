@@ -58,6 +58,11 @@ _FIVE_MINUTES = 300.0
 MAX_PROJECTION = timedelta(days=365)
 # Newest samples averaged to decide "already exhausted" (one spike is not).
 _RECENT_SAMPLES = 3
+# A newest sample above the threshold is a spike when it is more than this
+# many noise units (median absolute deviation from the trend) and at least
+# _SPIKE_MIN_GAP percentage points above the trend value.
+_SPIKE_NOISE_FACTOR = 3.0
+_SPIKE_MIN_GAP = 5.0
 
 # (resource_type, PromQL, result limit, contributing factors)
 _NODE_QUERIES = (
@@ -103,8 +108,10 @@ def _usage_trend(metric: Dict[str, Any], now: datetime,
     first and newest always kept), so the trend is fitted on the sample
     timestamps, never on the sample index, with the Theil-Sen estimator so
     that one outlier cannot create a trend. The current value is the newest
-    finite sample. A series is exhausted only when the observed data and the
-    trend agree; a newest sample above the threshold otherwise is a spike.
+    finite sample (shown as current usage); the projection starts from the
+    trend value at that sample (the level), so one sample cannot move it.
+    A series is exhausted only when the data and the trend agree; a newest
+    sample far above the level, beyond the series' noise, is a spike.
     """
     points = _series_points(metric)
     if not points:
@@ -112,39 +119,47 @@ def _usage_trend(metric: Dict[str, Any], now: datetime,
     current = points[-1][1]
 
     slope_per_second = None
-    fitted = None  # trend value at the newest sample
+    level = None  # trend value at the newest sample
+    noise = 0.0   # median absolute deviation of the samples from the trend
     if len(points) >= 3 and len({ts for ts, _ in points}) >= 2:
         from scipy.stats import theilslopes
         slope, intercept = theilslopes([v for _, v in points], [ts for ts, _ in points])[:2]
         if math.isfinite(slope) and math.isfinite(intercept):
             slope_per_second = float(slope)
-            fitted = float(intercept + slope * points[-1][0])
+            level = float(intercept + slope * points[-1][0])
+            residuals = sorted(abs(v - (intercept + slope * ts)) for ts, v in points)
+            noise = float(residuals[len(residuals) // 2])
 
     if horizon >= MAX_PROJECTION:
         horizon, horizon_label = MAX_PROJECTION, f'{MAX_PROJECTION.days}d'
     horizon_label = horizon_label or f'{horizon.total_seconds() / 3600:g}h'
     recent = [v for _, v in points[-_RECENT_SAMPLES:]]
     recent_mean = sum(recent) / len(recent)
+    # A newest sample this far above the level is an outlier, not the trend
+    spike = current >= EXHAUSTION_PERCENT and (
+        level is None or current - level > max(_SPIKE_NOISE_FACTOR * noise, _SPIKE_MIN_GAP))
+
     predicted_exhaustion = None
     exhaustion_note = None
-    trend_exhausted = (current >= EXHAUSTION_PERCENT and fitted is not None
-                       and fitted >= EXHAUSTION_PERCENT)
-    if recent_mean >= EXHAUSTION_PERCENT or trend_exhausted:
+    if recent_mean >= EXHAUSTION_PERCENT or (
+            current >= EXHAUSTION_PERCENT and level is not None and level >= EXHAUSTION_PERCENT):
         predicted_exhaustion = now.isoformat()
         exhaustion_note = (f'already exhausted: mean of the newest {len(recent)} sample(s) '
                            f'{recent_mean:.1f} %'
-                           + (f', trend value {fitted:.1f} %' if fitted is not None else ''))
-    elif current >= EXHAUSTION_PERCENT:
-        exhaustion_note = (f'not projected: newest sample is at or above {EXHAUSTION_PERCENT:g} % '
-                           f'but the mean of the newest {len(recent)} sample(s) is {recent_mean:.1f} %'
-                           + (f' and the trend value {fitted:.1f} %' if fitted is not None else '')
-                           + ' (spike)')
+                           + (f', trend value {level:.1f} %' if level is not None else ''))
+    elif spike:
+        exhaustion_note = (f'not projected: newest sample {current:.1f} % is a spike'
+                           + (f' above the trend value {level:.1f} %' if level is not None else '')
+                           + f' (mean of the newest {len(recent)} sample(s) {recent_mean:.1f} %)')
+    elif level is not None and level >= EXHAUSTION_PERCENT:
+        exhaustion_note = (f'not projected: the trend value {level:.1f} % is above the recent '
+                           f'data (mean {recent_mean:.1f} %, newest {current:.1f} %)')
     elif slope_per_second is None:
         exhaustion_note = 'not projected: no trend'
     elif slope_per_second <= 0:
         exhaustion_note = 'not projected: usage is not growing'
     else:
-        seconds = (EXHAUSTION_PERCENT - current) / slope_per_second
+        seconds = (EXHAUSTION_PERCENT - level) / slope_per_second
         if seconds <= horizon.total_seconds():
             predicted_exhaustion = (now + timedelta(seconds=seconds)).isoformat()
         elif seconds <= MAX_PROJECTION.total_seconds():
