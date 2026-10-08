@@ -293,3 +293,82 @@ def test_scanner_rules():
                  "async def f(api):\n    helper(api)\n")
     assert not _hits("async def f(api):\n    await asyncio.to_thread(api.list_x, 'a', _request_timeout=5)\n")
     assert not _hits("async def f(reg):\n    fn = getattr(reg, 'query')\n    fn()\n")
+
+
+# ── per-source pools (one stuck cluster must not delay another) ──────────────
+
+
+class _FakeApiClient:
+    def __init__(self, host):
+        self.configuration = type("Cfg", (), {"host": host})()
+
+
+class _HostApi:
+    """API object for one cluster; list_stuck blocks until released."""
+
+    def __init__(self, host, release):
+        self.api_client = _FakeApiClient(host)
+        self._release = release
+
+    def list_stuck(self, _request_timeout=None):
+        self._release.wait(5)
+
+    def list_quick(self, _request_timeout=None):
+        return threading.current_thread().name
+
+
+def test_stuck_cluster_does_not_delay_another_cluster():
+    release = threading.Event()
+    stuck = _HostApi("https://api.stuck.example:6443", release)
+    healthy = _HostApi("https://api.healthy.example:6443", release)
+
+    async def main():
+        blocked = [asyncio.ensure_future(k8s_call(stuck.list_stuck)) for _ in range(30)]
+        await asyncio.sleep(0.05)
+        started = time.monotonic()
+        await k8s_call(healthy.list_quick)
+        waited = time.monotonic() - started
+        release.set()
+        await asyncio.gather(*blocked)
+        return waited
+
+    assert asyncio.run(main()) < 0.5
+
+
+def test_each_cluster_pool_is_bounded():
+    lock = threading.Lock()
+    state = {"now": 0, "max": 0}
+
+    class Api:
+        api_client = _FakeApiClient("https://api.one.example:6443")
+
+        def list_x(self, _request_timeout=None):
+            with lock:
+                state["now"] += 1
+                state["max"] = max(state["max"], state["now"])
+            time.sleep(0.05)
+            with lock:
+                state["now"] -= 1
+
+    async def main():
+        await asyncio.gather(*(k8s_call(Api().list_x) for _ in range(40)))
+
+    asyncio.run(main())
+    assert state["max"] <= k8s_async.MAX_CONCURRENT_CALLS
+
+
+def test_pool_key_is_found_through_wrappers_and_helpers():
+    from kubernetes import client
+    from core.readonly_client import ReadOnlyK8sClient
+
+    cfg = client.Configuration()
+    cfg.host = "https://api.c1.example:6443"
+    core = client.CoreV1Api(client.ApiClient(cfg))
+    wrapped = ReadOnlyK8sClient.wrap(core)
+
+    assert k8s_async._host_of(core.list_namespace) == cfg.host
+    assert k8s_async._host_of(wrapped.list_namespace) == cfg.host
+    assert k8s_async._host_of(wrapped) == cfg.host
+    holder = type("Discovery", (), {"k8s_core_api": wrapped})()
+    assert k8s_async._host_of(holder) == cfg.host
+    assert k8s_async._host_of(object()) is None
