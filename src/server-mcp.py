@@ -808,7 +808,7 @@ from helpers.prometheus import (
     _promql_label_value,
 )
 from helpers.utils import _safe_compile_namespace_filter, _parse_time_parameter, _handle_api_exception, _get_fallback_cluster_health
-from helpers.utils import list_nodes_bounded, _to_utc
+from helpers.utils import list_nodes_bounded, _to_utc, _unread_containers_reason
 from helpers.utils import _get_active_node_names  # noqa: F401 - re-exported for test monkeypatch surface
 from helpers.event_analysis import (  # noqa: F401 - re-exported for test monkeypatch surface
     _compress_events_for_synthesis,
@@ -3306,10 +3306,13 @@ async def get_pod_logs(
 
     Returns:
         Dict with either:
-        - {"logs": {"container_name": "logs", ...}} on success
+        - {"logs": {"container_name": "logs", ...}} on success, plus
+          "unread_containers": {"name": "reason"} when some containers'
+          logs could not be read (they are not in "logs")
         - {"error": "error_message"} on failure
     """
     _c = clients if clients is not None else _DefaultClientView()
+    unread: Dict[str, str] = {}
     try:
         # Call the underlying get_all_pod_logs function
         pod_logs = await get_all_pod_logs(
@@ -3320,7 +3323,8 @@ async def get_pod_logs(
             since_seconds=since_seconds,
             since_time=since_time,
             timestamps=timestamps,
-            previous=previous
+            previous=previous,
+            unread=unread,
         )
 
         # Check if we got an error response
@@ -3335,10 +3339,14 @@ async def get_pod_logs(
             if container_name:
                 if container_name in pod_logs:
                     return {"logs": {container_name: pod_logs[container_name]}}
+                elif container_name in unread:
+                    return {"error": f"Could not read logs of container '{container_name}': {unread[container_name]}"}
                 else:
                     return {"error": f"Container '{container_name}' not found in pod '{pod_name}'"}
 
             # Return all container logs
+            if unread:
+                return {"logs": pod_logs, "unread_containers": unread}
             return {"logs": pod_logs}
 
         # Handle unexpected response format
@@ -5409,6 +5417,14 @@ async def smart_summarize_pod_logs(
         if "error" in raw_logs:
             return {"error": f"Failed to retrieve logs: {raw_logs['error']}"}
 
+        # Containers whose logs could not be read (e.g. waiting to start)
+        unread_containers = raw_logs.get("unread_containers") or {}
+        if container_name and container_name in unread_containers:
+            return {"error": f"Failed to retrieve logs: could not read container "
+                             f"'{container_name}': {unread_containers[container_name]}"}
+        if container_name:
+            unread_containers = {}
+
         if "logs" not in raw_logs or not raw_logs["logs"]:
             return {
                 "error": "No logs found for the specified pod",
@@ -5556,6 +5572,9 @@ async def smart_summarize_pod_logs(
         results = truncate_to_token_limit(results, max_context_tokens)
         if results.get('_truncated'):
             logger.info(f"[{tool_name}] Output truncated to fit within {max_context_tokens} token limit")
+        if unread_containers:
+            # Only the other containers were analysed
+            results["unread_containers"] = unread_containers
 
         return results
 
@@ -5981,6 +6000,12 @@ async def conservative_namespace_overview(
                         essential_info["top_issue"] = f"{top_error['content'][:80]}..."
                         issues_found.append(f"Pod {pod_name}: {essential_info['top_issue']}")
 
+                    # Partly read (e.g. main container waiting): keep the
+                    # findings, but the pod's health is not known
+                    unread_reason = _unread_containers_reason(pod_analysis)
+                    if unread_reason:
+                        essential_info["error"] = unread_reason
+
                     findings[pod_name] = essential_info
                 else:
                     # Not analyzed (e.g. pods/log forbidden): keep the reason,
@@ -6244,6 +6269,11 @@ async def adaptive_namespace_investigation(
                             "analysis": filtered_analysis,
                             "priority_reason": "failed_pod" if pod_status == "Failed" else "normal_processing"
                         }
+                        # Partly read (e.g. main container waiting): keep the
+                        # findings, but the pod's health is not known
+                        unread_reason = _unread_containers_reason(result["analysis"])
+                        if unread_reason:
+                            findings[pod_name]["error"] = unread_reason
 
                         # Extract critical issues
                         if result["analysis"].get("patterns", {}).get("errors"):

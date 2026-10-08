@@ -52,9 +52,10 @@ adoption (D2, `grep -c '"scan_coverage"' src/server-mcp.py` → 0).
    construction today (`pods_attempted` increments only over
    `prioritized_pods[:min(max_pods, total_pods)]`, and `scanned = pods_analyzed =
    pods_attempted - failed`, with `denied + skipped = failed`, so
-   `scanned <= discovered` always holds). Plan D adopters MUST either (a) guarantee the same invariant by construction,
-   or (b) wrap the `build_coverage(...)` call so that a programming error in the count
-   arguments raises visibly rather than discarding an otherwise-complete investigation.
+   `scanned <= discovered` always holds). Plan D adopters MUST either (a) guarantee the
+   same invariant by construction, or (b) wrap the `build_coverage(...)` call so that a
+   programming error in the count arguments raises visibly rather than discarding an
+   otherwise-complete investigation.
 
 2. **`requested_mode` is un-enforced at construction.** It is passed as `**extra` and
    validated only in the per-adopter semantic case in `ADOPTER_GOLDEN_TABLE`. A Plan D

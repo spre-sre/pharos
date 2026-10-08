@@ -316,3 +316,89 @@ async def test_denied_count_ignores_403_inside_names(server, monkeypatch):
 
     coverage = result["adaptive_metadata"]["coverage"]
     assert (coverage["denied"], coverage["skipped"]) == (0, 8)
+
+
+# ── Partly read pods: main container waiting, sidecar running ───────────────
+
+_WAITING_BODY = ('{"kind":"Status","message":"container \\"main\\" in pod \\"pod-0\\" is waiting '
+                 'to start: trying and failing to pull image","reason":"BadRequest","code":400}')
+
+
+class _MainWaitingCore:
+    def read_namespaced_pod(self, name, namespace, **kwargs):
+        containers = [SimpleNamespace(name="main"), SimpleNamespace(name="sidecar")]
+        return SimpleNamespace(spec=SimpleNamespace(containers=containers),
+                               status=SimpleNamespace(start_time=None))
+
+    def read_namespaced_pod_log(self, *args, container=None, **kwargs):
+        if container == "main":
+            error = ApiException(status=400, reason="Bad Request")
+            error.body = _WAITING_BODY
+            raise error
+        return "2026-10-08T10:00:00Z proxy started\n2026-10-08T10:00:01Z ready\n"
+
+
+def _patch_main_waiting(server, monkeypatch):
+    real_get_pod_logs = server.get_pod_logs
+    clients = SimpleNamespace(core_api=_MainWaitingCore())
+
+    async def get_pod_logs(*args, **kwargs):
+        kwargs["clients"] = clients
+        return await real_get_pod_logs(*args, **kwargs)
+
+    async def mock_pods(namespace, **kwargs):
+        return _PODS
+
+    async def mock_events(*args, **kwargs):
+        return _QUIET_EVENTS
+
+    monkeypatch.setattr(server, "get_pod_logs", get_pod_logs)
+    monkeypatch.setattr(server, "list_pods_in_namespace", mock_pods)
+    monkeypatch.setattr(server, "smart_get_namespace_events", mock_events)
+
+
+@pytest.mark.asyncio
+async def test_unread_container_is_reported_not_analysed_as_a_log(server, monkeypatch):
+    _patch_main_waiting(server, monkeypatch)
+
+    result = await server.smart_summarize_pod_logs(namespace="team-a", pod_name="pod-0", summary_level="brief")
+
+    assert "error" not in result
+    assert "waiting to start" in result["unread_containers"]["main"]
+    assert "(400)" in result["unread_containers"]["main"]
+    assert not result.get("patterns", {}).get("errors")  # the error text is not a log line
+
+
+@pytest.mark.asyncio
+async def test_unread_requested_container_is_an_error(server, monkeypatch):
+    _patch_main_waiting(server, monkeypatch)
+
+    result = await server.smart_summarize_pod_logs(
+        namespace="team-a", pod_name="pod-0", container_name="main", summary_level="brief")
+
+    assert "waiting to start" in result["error"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("focus_areas", [None, ["performance"]])
+async def test_adaptive_partly_read_pods_are_not_healthy(server, monkeypatch, focus_areas):
+    _patch_main_waiting(server, monkeypatch)
+
+    result = await server.adaptive_namespace_investigation(namespace="team-a", focus_areas=focus_areas)
+
+    summary = result["investigation_summary"]
+    assert (summary["pods_analyzed"], summary["pods_failed"]) == (0, 8)
+    assert result["critical_issues"] == []
+    assert not _says_healthy(result["recommendations"]), result["recommendations"]
+    assert result["adaptive_metadata"]["coverage"]["verdict"] == "none"
+    assert "main" in result["pod_findings"]["pod-0"]["error"]
+
+
+@pytest.mark.asyncio
+async def test_conservative_partly_read_pods_are_not_healthy(server, monkeypatch):
+    _patch_main_waiting(server, monkeypatch)
+
+    result = await server.conservative_namespace_overview(namespace="team-a", focus_areas=["performance"])
+
+    assert (result["overview"]["pods_analyzed"], result["overview"]["pods_failed"]) == (0, 8)
+    assert not _says_healthy(result["recommendations"]), result["recommendations"]

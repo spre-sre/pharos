@@ -551,6 +551,27 @@ def calculate_context_tokens(text: str) -> int:
     return len(text) // 3
 
 
+def _api_error_reason(e: Exception) -> str:
+    """"(400) Bad Request: container "main" ... is waiting to start" from an
+    ApiException: status, reason and the API message from the body."""
+    status = getattr(e, 'status', None)
+    reason = f"({status}) {e.reason}" if status else f"{e.reason}"
+    try:
+        message = json.loads(getattr(e, 'body', None) or "{}").get("message")
+    except (TypeError, ValueError, AttributeError):
+        message = None
+    return f"{reason}: {message}" if message else reason
+
+
+def _unread_containers_reason(analysis: Dict[str, Any]) -> Optional[str]:
+    """Why a pod analysis is incomplete: the containers whose logs could not
+    be read (e.g. "main: (400) Bad Request: ... waiting to start"), else None."""
+    unread = analysis.get("unread_containers") or {}
+    if not unread:
+        return None
+    return "logs not read for " + "; ".join(f"{name}: {reason}" for name, reason in unread.items())
+
+
 async def get_all_pod_logs(
     pod_name: str,
     namespace: str,
@@ -559,7 +580,8 @@ async def get_all_pod_logs(
     since_seconds: Optional[int] = None,
     since_time: Optional[str] = None,
     timestamps: bool = True,
-    previous: bool = False
+    previous: bool = False,
+    unread: Optional[Dict[str, str]] = None,
 ) -> Dict[str, str]:
     """
     Reads logs from all containers in a specified pod with optional filtering.
@@ -573,9 +595,14 @@ async def get_all_pod_logs(
         since_time: Retrieve logs newer than this RFC3339 timestamp.
         timestamps: Include timestamps in log output.
         previous: Retrieve logs from previous container instance.
+        unread: Optional dict. When given, a container whose log cannot be read
+            is recorded here (name -> reason) and left out of the result;
+            otherwise its value is the error text ("Error fetching logs: ...").
 
     Returns:
-        Dictionary where keys are container names and values are their logs.
+        Dictionary where keys are container names and values are their logs,
+        or one sentinel key on failure: error_time_filter, error_logs (no
+        container log could be read), pod_error, no_containers or no_logs.
     """
     k8s_core_api = ReadOnlyCoreV1.wrap(k8s_core_api)
     container_logs = {}
@@ -647,14 +674,17 @@ async def get_all_pod_logs(
             except Exception as e:
                 if hasattr(e, 'reason'):
                     logger.warning(f"Error reading logs for container {container_name} in pod {pod_name}: {e}")
-                    status = getattr(e, 'status', None)
-                    reason = f"({status}) {e.reason}" if status else f"{e.reason}"
-                    container_logs[container_name] = f"Error fetching logs: {reason}"
+                    reason = _api_error_reason(e)
+                    text = f"Error fetching logs: {reason}"
                 else:
                     logger.warning(f"Unexpected error fetching logs for container {container_name} in pod {pod_name}: {e}")
-                    reason = str(e)
-                    container_logs[container_name] = f"Unexpected error fetching logs: {reason}"
+                    reason = str(e) or type(e).__name__
+                    text = f"Unexpected error fetching logs: {reason}"
                 read_errors[container_name] = reason
+                if unread is not None:
+                    unread[container_name] = reason
+                else:
+                    container_logs[container_name] = text
 
         # No container log could be read (e.g. pods/log forbidden, all
         # containers waiting): an error, never error text posing as a log

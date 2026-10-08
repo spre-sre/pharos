@@ -40,10 +40,11 @@
     },
     "fastest_growing_consumers": [],
     "most_constrained_resources": [],
+    "nodes_error": "AttributeError: '_NS' object has no attribute 'get'",
     "overall_health": "unknown",
     "total_cpu_cores": null,
     "total_memory_gb": null,
-    "total_nodes": null
+    "total_nodes": 1
   },
   "forecasts": [
     {

@@ -160,7 +160,8 @@ async def _node_forecast(monkeypatch, seen):
     async def no_active_filter(core_api, request_timeout=30.0):
         return None
     monkeypatch.setattr(rf, "get_active_node_names_bounded", no_active_filter)
-    out = await rf._analyze_node_resources_new("7d", "24h", _Log(), query_fn=_node_query_fn(seen), core_api=None)
+    # 30d horizon: the true trend reaches 90 % in about 7 days
+    out = await rf._analyze_node_resources_new("7d", "30d", _Log(), query_fn=_node_query_fn(seen), core_api=None)
     (cpu,) = [f for f in out if f["resource_type"] == "cpu"]
     return cpu
 
@@ -353,10 +354,10 @@ async def test_one_bad_series_does_not_drop_the_others(monkeypatch):
 
     real_trend = rf._usage_trend
 
-    def flaky_trend(metric, now):
+    def flaky_trend(metric, now, *args):
         if metric["metric"]["instance"] == "n2":
             raise OverflowError("date value out of range")
-        return real_trend(metric, now)
+        return real_trend(metric, now, *args)
 
     monkeypatch.setattr(rf, "get_active_node_names_bounded", no_active_filter)
     monkeypatch.setattr(rf, "_usage_trend", flaky_trend)
@@ -402,3 +403,71 @@ async def test_namespace_nan_cpu_is_dropped(server, monkeypatch):
     monkeypatch.setattr(server, "_analyze_cluster_capacity_new", no_overview)
     result = await server.resource_bottleneck_forecaster(namespaces=["team-a"], resource_types=["cpu"])
     assert [f for f in result["forecasts"] if f["resource_type"] == "namespace_cpu"] == []
+
+
+def test_one_hot_sample_is_not_exhaustion():
+    now = datetime.now(timezone.utc)
+    metric = {"values": [[1000, "60"], [1300, "62"], [1600, "61"], [1900, "60"], [2200, "95"]]}
+    trend = rf._usage_trend(metric, now)
+    assert trend["predicted_exhaustion"] != now.isoformat()
+
+
+def test_exhausted_series_has_a_note():
+    now = datetime.now(timezone.utc)
+    trend = rf._usage_trend({"values": [[1000, "92"], [1300, "93"], [1600, "94"]]}, now)
+    assert "already exhausted" in trend["exhaustion_note"]
+
+
+@pytest.mark.parametrize("values,note", [
+    ([[1000, "50"], [1300, "49"], [1600, "48"]], "not growing"),
+    ([[1000, "10"], [1300, "10.01"], [1600, "10.02"]], "not reached within 1 day"),
+])
+def test_unprojected_exhaustion_has_a_note(values, note):
+    trend = rf._usage_trend({"values": values}, datetime.now(timezone.utc), timedelta(days=1))
+    assert trend["predicted_exhaustion"] is None
+    assert note in trend["exhaustion_note"]
+
+
+@pytest.mark.asyncio
+async def test_projection_is_limited_to_the_forecast_horizon(monkeypatch):
+    async def no_active_filter(core_api, request_timeout=30.0):
+        return None
+
+    async def query_fn(query, **kwargs):
+        if "node_cpu" not in query:
+            return {"status": "success", "data": []}
+        # +1 % per 5 minutes from 10 %: reaches 90 % in 80 * 5 min = 6 h 40 min
+        return {"status": "success", "data": [
+            {"metric": {"instance": "n1"}, "values": [[1000, "8"], [1300, "9"], [1600, "10"]]}]}
+
+    monkeypatch.setattr(rf, "get_active_node_names_bounded", no_active_filter)
+    (short,) = await rf._analyze_node_resources_new("7d", "1h", _Log(), query_fn=query_fn, core_api=None)
+    (long,) = await rf._analyze_node_resources_new("7d", "24h", _Log(), query_fn=query_fn, core_api=None)
+    assert short["predicted_exhaustion"] is None and "within" in short["exhaustion_note"]
+    assert long["predicted_exhaustion"] is not None
+
+
+@pytest.mark.asyncio
+async def test_capacity_parses_all_quantity_units():
+    class _Core:
+        def list_node(self, **kwargs):
+            caps = [{"cpu": "1500m", "memory": "1.5Gi"}, {"cpu": "2", "memory": "1Ti"}]
+            return SimpleNamespace(items=[SimpleNamespace(status=SimpleNamespace(capacity=c)) for c in caps])
+
+    out = await rf._analyze_cluster_capacity_new(_Core(), _Log(), query_fn=_capacity_query_fn("40.0", "40.0"))
+    assert out["total_nodes"] == 2
+    assert out["total_cpu_cores"] == pytest.approx(3.5)
+    assert out["total_memory_gb"] == pytest.approx(1025.5)
+
+
+@pytest.mark.asyncio
+async def test_unparsable_capacity_keeps_node_count_and_reason():
+    class _Core:
+        def list_node(self, **kwargs):
+            return SimpleNamespace(items=[SimpleNamespace(status=SimpleNamespace(capacity={"cpu": "lots"}))])
+
+    out = await rf._analyze_cluster_capacity_new(_Core(), _Log(), query_fn=_capacity_query_fn("40.0", "40.0"))
+    assert out["total_nodes"] == 1
+    assert out["total_cpu_cores"] is None
+    assert out["data_source"]["nodes"] == "unavailable"
+    assert out["nodes_error"]
