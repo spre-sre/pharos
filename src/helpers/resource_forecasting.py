@@ -2,18 +2,17 @@
 import asyncio
 import functools
 import logging
-from datetime import datetime
-from typing import Any, Dict, List
+import math
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.readonly_client import ReadOnlyK8sClient
 from helpers.utils import (
     _get_active_node_names,
     _is_node_active,
     _NODE_LISTING_EXECUTOR,
-    calculate_forecast_intervals,
     list_nodes_bounded,
     parse_time_period,
-    simple_linear_forecast,
 )
 
 logger = logging.getLogger("lumino-mcp")
@@ -49,11 +48,80 @@ async def get_active_node_names_bounded(core_api,
         return None
 
 
+# Usage at or above this percent counts as exhausted.
+EXHAUSTION_PERCENT = 90.0
+_FIVE_MINUTES = 300.0
+
+# (resource_type, PromQL, result limit, contributing factors)
+_NODE_QUERIES = (
+    ('cpu',
+     # aggregate to avoid series explosion from pod restarts
+     'max by (instance) (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100))',
+     100,
+     ['workload_scaling', 'baseline_usage_trend']),
+    ('memory',
+     'max by (instance) ((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)',
+     100,
+     ['memory_leaks', 'workload_growth', 'cache_usage']),
+    ('disk',
+     # filter out kubelet pod volumes and aggregate by instance/mountpoint
+     '''max by (instance, mountpoint) (
+            (1 - (node_filesystem_avail_bytes{fstype!="tmpfs", mountpoint!~"/var/lib/kubelet/pods.*|/run/.*"}
+                / node_filesystem_size_bytes{fstype!="tmpfs", mountpoint!~"/var/lib/kubelet/pods.*|/run/.*"})) * 100
+        )''',
+     200,
+     ['log_growth', 'cache_accumulation', 'temporary_files']),
+)
+
+
+def _series_points(metric: Dict[str, Any]) -> List[Tuple[float, float]]:
+    """(unix seconds, value) pairs of a range series, skipping NaN/unparsable."""
+    points = []
+    for point in metric.get('values', []):
+        try:
+            ts, value = float(point[0]), float(point[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if math.isfinite(ts) and math.isfinite(value):
+            points.append((ts, value))
+    return points
+
+
+def _usage_trend(metric: Dict[str, Any], now: datetime) -> Optional[Dict[str, Any]]:
+    """Current usage, growth per 5 minutes and predicted exhaustion of a series.
+
+    prometheus_query returns at most 50 downsampled points per series (the
+    first and newest always kept), so the trend is fitted on the sample
+    timestamps, never on the sample index. The current value is the newest
+    finite sample.
+    """
+    points = _series_points(metric)
+    if not points:
+        return None
+    current = points[-1][1]
+
+    slope_per_second = None
+    if len(points) >= 3 and len({ts for ts, _ in points}) >= 2:
+        from scipy.stats import linregress
+        slope = linregress([ts for ts, _ in points], [v for _, v in points]).slope
+        if math.isfinite(slope):
+            slope_per_second = float(slope)
+
+    predicted_exhaustion = None
+    if slope_per_second and slope_per_second > 0 and current < EXHAUSTION_PERCENT:
+        seconds = (EXHAUSTION_PERCENT - current) / slope_per_second
+        predicted_exhaustion = (now + timedelta(seconds=seconds)).isoformat()
+
+    return {
+        'current': current,
+        'growth_per_5min': None if slope_per_second is None else slope_per_second * _FIVE_MINUTES,
+        'predicted_exhaustion': predicted_exhaustion,
+    }
+
+
 async def _analyze_node_resources_new(trend_period: str, forecast_horizon: str, log, *, query_fn, core_api) -> List[Dict]:
     """Analyze node-level resource utilization using Prometheus query method."""
     try:
-        from datetime import timedelta
-
         # Get currently active nodes to filter out historical/terminated nodes
         # (off-loop AND caller-bounded — see get_active_node_names_bounded)
         active_nodes = await get_active_node_names_bounded(core_api)
@@ -65,162 +133,54 @@ async def _analyze_node_resources_new(trend_period: str, forecast_horizon: str, 
         else:
             log.info(f"Found {len(active_nodes)} active nodes from Kubernetes API")
 
-        # Calculate time range for trend analysis
-        end_time = datetime.now()
+        # Time range for trend analysis, in UTC (Prometheus reads "+00:00")
+        end_time = datetime.now(timezone.utc)
         start_time = end_time - parse_time_period(trend_period)
-
-        # Convert to ISO format for the query method
-        start_time_iso = start_time.isoformat() + "Z"
-        end_time_iso = end_time.isoformat() + "Z"
 
         forecasts = []
         filtered_count = 0
-        forecast_points = calculate_forecast_intervals(forecast_horizon)
 
-        # Node CPU usage query - aggregate to avoid series explosion from pod restarts
-        cpu_query = 'max by (instance) (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100))'
+        for resource_type, query, limit, factors in _NODE_QUERIES:
+            try:
+                result = await query_fn(
+                    query=query,
+                    query_type="range",
+                    start_time=start_time.isoformat(),
+                    end_time=end_time.isoformat(),
+                    step="300s",
+                    limit=limit,
+                )
+                if result.get("status") != "success" or not result.get("data"):
+                    continue
 
-        try:
-            cpu_result = await query_fn(
-                query=cpu_query,
-                query_type="range",
-                start_time=start_time_iso,
-                end_time=end_time_iso,
-                step="300s",
-                limit=100  # Limit to top 100 nodes
-            )
-
-            if cpu_result.get("status") == "success" and cpu_result.get("data"):
-                for metric in cpu_result["data"]:
-                    node = metric.get('metric', {}).get('instance', 'unknown')
-
-                    # Filter out nodes that are no longer active
-                    if not _is_node_active(node, active_nodes):
-                        filtered_count += 1
-                        continue
-
-                    values = [float(point[1]) for point in metric.get('values', [])]
-
-                    if values:
-                        forecast_result = simple_linear_forecast(values, forecast_points)
-                        current_usage = values[-1] if values else 0
-
-                        # Predict exhaustion time
-                        predicted_exhaustion = None
-                        if forecast_result['growth_rate'] > 0:
-                            # Calculate when it might reach 90%
-                            points_to_90 = (90 - current_usage) / forecast_result['growth_rate']
-                            if points_to_90 > 0:
-                                exhaustion_time = end_time + timedelta(minutes=5 * points_to_90)
-                                predicted_exhaustion = exhaustion_time.isoformat()
-
-                        forecasts.append({
-                            'resource_type': 'cpu',
-                            'resource_identifier': {'node': node, 'metric': 'cpu_utilization_percent'},
-                            'current_usage': {'value': current_usage, 'unit': 'percent'},
-                            'predicted_exhaustion': predicted_exhaustion,
-                            'growth_rate': {'value': forecast_result['growth_rate'], 'unit': 'percent_per_5min'},
-                            'contributing_factors': ['workload_scaling', 'baseline_usage_trend']
-                        })
-        except Exception as e:
-            log.warning(f"Error fetching CPU metrics: {str(e)}")
-
-        # Node memory usage query - aggregate by instance to avoid series explosion from pod restarts
-        memory_query = 'max by (instance) ((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)'
-
-        try:
-            memory_result = await query_fn(
-                query=memory_query,
-                query_type="range",
-                start_time=start_time_iso,
-                end_time=end_time_iso,
-                step="300s",
-                limit=100  # Limit to top 100 nodes
-            )
-
-            if memory_result.get("status") == "success" and memory_result.get("data"):
-                for metric in memory_result["data"]:
-                    node = metric.get('metric', {}).get('instance', 'unknown')
+                for metric in result["data"]:
+                    labels = metric.get('metric', {})
+                    node = labels.get('instance', 'unknown')
 
                     # Filter out nodes that are no longer active
                     if not _is_node_active(node, active_nodes):
                         filtered_count += 1
                         continue
 
-                    values = [float(point[1]) for point in metric.get('values', [])]
-
-                    if values:
-                        forecast_result = simple_linear_forecast(values, forecast_points)
-                        current_usage = values[-1] if values else 0
-
-                        predicted_exhaustion = None
-                        if forecast_result['growth_rate'] > 0:
-                            points_to_90 = (90 - current_usage) / forecast_result['growth_rate']
-                            if points_to_90 > 0:
-                                exhaustion_time = end_time + timedelta(minutes=5 * points_to_90)
-                                predicted_exhaustion = exhaustion_time.isoformat()
-
-                        forecasts.append({
-                            'resource_type': 'memory',
-                            'resource_identifier': {'node': node, 'metric': 'memory_utilization_percent'},
-                            'current_usage': {'value': current_usage, 'unit': 'percent'},
-                            'predicted_exhaustion': predicted_exhaustion,
-                            'growth_rate': {'value': forecast_result['growth_rate'], 'unit': 'percent_per_5min'},
-                            'contributing_factors': ['memory_leaks', 'workload_growth', 'cache_usage']
-                        })
-        except Exception as e:
-            log.warning(f"Error fetching memory metrics: {str(e)}")
-
-        # Node disk usage query - filter out kubelet pod volumes and aggregate by instance/mountpoint
-        # to avoid series explosion from node-exporter pod restarts
-        disk_query = '''max by (instance, mountpoint) (
-            (1 - (node_filesystem_avail_bytes{fstype!="tmpfs", mountpoint!~"/var/lib/kubelet/pods.*|/run/.*"}
-                / node_filesystem_size_bytes{fstype!="tmpfs", mountpoint!~"/var/lib/kubelet/pods.*|/run/.*"})) * 100
-        )'''
-
-        try:
-            disk_result = await query_fn(
-                query=disk_query,
-                query_type="range",
-                start_time=start_time_iso,
-                end_time=end_time_iso,
-                step="300s",
-                limit=200  # Limit disk filesystems to top 200
-            )
-
-            if disk_result.get("status") == "success" and disk_result.get("data"):
-                for metric in disk_result["data"]:
-                    node = metric.get('metric', {}).get('instance', 'unknown')
-
-                    # Filter out nodes that are no longer active
-                    if not _is_node_active(node, active_nodes):
-                        filtered_count += 1
+                    trend = _usage_trend(metric, end_time)
+                    if trend is None:
                         continue
 
-                    mountpoint = metric.get('metric', {}).get('mountpoint', 'unknown')
-                    values = [float(point[1]) for point in metric.get('values', [])]
+                    identifier = {'node': node}
+                    if resource_type == 'disk':
+                        identifier['mountpoint'] = labels.get('mountpoint', 'unknown')
+                    identifier['metric'] = f'{resource_type}_utilization_percent'
 
-                    if values:
-                        forecast_result = simple_linear_forecast(values, forecast_points)
-                        current_usage = values[-1] if values else 0
-
-                        predicted_exhaustion = None
-                        if forecast_result['growth_rate'] > 0:
-                            points_to_90 = (90 - current_usage) / forecast_result['growth_rate']
-                            if points_to_90 > 0:
-                                exhaustion_time = end_time + timedelta(minutes=5 * points_to_90)
-                                predicted_exhaustion = exhaustion_time.isoformat()
-
-                        forecasts.append({
-                            'resource_type': 'disk',
-                            'resource_identifier': {'node': node, 'mountpoint': mountpoint, 'metric': 'disk_utilization_percent'},
-                            'current_usage': {'value': current_usage, 'unit': 'percent'},
-                            'predicted_exhaustion': predicted_exhaustion,
-                            'growth_rate': {'value': forecast_result['growth_rate'], 'unit': 'percent_per_5min'},
-                            'contributing_factors': ['log_growth', 'cache_accumulation', 'temporary_files']
-                        })
-        except Exception as e:
-            log.warning(f"Error fetching disk metrics: {str(e)}")
+                    forecasts.append({
+                        'resource_type': resource_type,
+                        'resource_identifier': identifier,
+                        'current_usage': {'value': trend['current'], 'unit': 'percent'},
+                        'predicted_exhaustion': trend['predicted_exhaustion'],
+                        'growth_rate': {'value': trend['growth_per_5min'], 'unit': 'percent_per_5min'},
+                        'contributing_factors': list(factors),
+                    })
+            except Exception as e:
+                log.warning(f"Error fetching {resource_type} metrics: {str(e)}")
 
         if filtered_count > 0:
             log.info(f"Filtered out {filtered_count} metrics from inactive/historical nodes")
@@ -262,61 +222,72 @@ async def _analyze_cluster_capacity_new(core_api, log, *, query_fn) -> Dict[str,
                 elif memory_str.endswith('Gi'):
                     total_memory += int(memory_str[:-2]) * 1024 * 1024 * 1024
 
-        # Get current cluster resource usage via Prometheus
-        cpu_usage_percent = 0
-        memory_usage_percent = 0
+        # Current cluster usage via Prometheus; None when it cannot be read
+        # (never 0 %, which would read as an idle, healthy cluster)
+        async def _cluster_percent(name: str, query: str) -> Optional[float]:
+            try:
+                result = await query_fn(query)
+            except Exception as e:
+                log.warning(f"Could not fetch cluster {name} usage: {str(e)}")
+                return None
+            data = result.get("data") if result.get("status") == "success" else None
+            if not data or 'value' not in data[0]:
+                log.warning(f"Could not fetch cluster {name} usage: "
+                            f"{result.get('error') or 'no data returned'}")
+                return None
+            try:
+                value = float(data[0]['value'])
+            except (TypeError, ValueError):
+                return None
+            return value if math.isfinite(value) else None
 
-        try:
-            # Cluster CPU usage
-            cpu_usage_result = await query_fn(
-                'avg(100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100))'
-            )
-            if cpu_usage_result.get("status") == "success" and cpu_usage_result.get("data"):
-                data = cpu_usage_result["data"]
-                if data and len(data) > 0 and 'value' in data[0]:
-                    cpu_usage_percent = float(data[0]['value'])
-        except Exception as e:
-            log.warning(f"Could not fetch cluster CPU usage: {str(e)}")
+        cpu_usage_percent = await _cluster_percent(
+            "CPU", 'avg(100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100))')
+        memory_usage_percent = await _cluster_percent(
+            "memory", 'avg(100 - (avg by (instance) (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)')
+        known = [u for u in (cpu_usage_percent, memory_usage_percent) if u is not None]
 
-        try:
-            # Cluster memory usage
-            memory_usage_result = await query_fn(
-                'avg(100 - (avg by (instance) (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)'
-            )
-            if memory_usage_result.get("status") == "success" and memory_usage_result.get("data"):
-                data = memory_usage_result["data"]
-                if data and len(data) > 0 and 'value' in data[0]:
-                    memory_usage_percent = float(data[0]['value'])
-        except Exception as e:
-            log.warning(f"Could not fetch cluster memory usage: {str(e)}")
-
-        # Determine overall health
-        overall_health = "healthy"
-        if cpu_usage_percent > 80 or memory_usage_percent > 80:
-            overall_health = "degraded"
-        elif cpu_usage_percent > 90 or memory_usage_percent > 90:
+        # Determine overall health: the worst known reading decides; with a
+        # reading missing, only a critical/degraded result is still certain
+        if any(u > 90 for u in known):
             overall_health = "critical"
+        elif any(u > 80 for u in known):
+            overall_health = "degraded"
+        elif len(known) < 2:
+            overall_health = "unknown"
+        else:
+            overall_health = "healthy"
 
         # Identify most constrained resources
         constrained_resources = []
-        if cpu_usage_percent > 70:
+        if cpu_usage_percent is not None and cpu_usage_percent > 70:
             constrained_resources.append(f"CPU ({cpu_usage_percent:.1f}%)")
-        if memory_usage_percent > 70:
+        if memory_usage_percent is not None and memory_usage_percent > 70:
             constrained_resources.append(f"Memory ({memory_usage_percent:.1f}%)")
+
+        def _percent(value: Optional[float]) -> Optional[str]:
+            return None if value is None else f"{value:.1f}%"
 
         return {
             "overall_health": overall_health,
             "total_nodes": total_nodes,
             "total_cpu_cores": total_cpu,
             "total_memory_gb": round(total_memory / (1024**3), 1),
-            "current_cpu_usage": f"{cpu_usage_percent:.1f}%",
-            "current_memory_usage": f"{memory_usage_percent:.1f}%",
+            "current_cpu_usage": _percent(cpu_usage_percent),
+            "current_memory_usage": _percent(memory_usage_percent),
+            "data_source": {
+                "cpu": "unavailable" if cpu_usage_percent is None else "prometheus",
+                "memory": "unavailable" if memory_usage_percent is None else "prometheus",
+            },
             "most_constrained_resources": constrained_resources,
             "fastest_growing_consumers": [],  # Would need historical analysis
+            # A runway needs a usage trend; one instant reading has none
             "capacity_runway": {
-                "cpu_runway_days": max(0, int((90 - cpu_usage_percent) / max(0.1, cpu_usage_percent / 30))),
-                "memory_runway_days": max(0, int((90 - memory_usage_percent) / max(0.1, memory_usage_percent / 30)))
-            }
+                "cpu_runway_days": None,
+                "memory_runway_days": None,
+                "note": "Cluster runway is not computed from a single reading; "
+                        "see predicted_exhaustion in the per-node forecasts",
+            },
         }
 
     except Exception as e:

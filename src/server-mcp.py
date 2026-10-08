@@ -804,6 +804,7 @@ from helpers.prometheus import (
     _extract_kubeconfig_token,
     _process_prometheus_results,
     _generate_query_suggestions,
+    _promql_label_value,
 )
 from helpers.utils import _safe_compile_namespace_filter, _parse_time_parameter, _handle_api_exception, _get_fallback_cluster_health
 from helpers.utils import list_nodes_bounded, _to_utc
@@ -5980,6 +5981,10 @@ async def conservative_namespace_overview(
                         issues_found.append(f"Pod {pod_name}: {essential_info['top_issue']}")
 
                     findings[pod_name] = essential_info
+                else:
+                    # Not analyzed (e.g. pods/log forbidden): keep the reason,
+                    # never count the pod as checked
+                    findings[pod_name] = {"status": pod_status, "error": str(pod_analysis["error"])}
 
                 logger.info(f"[{tool_name}] Analyzed pod {i+1}/{min(max_pods, total_pods)}: {pod_name}")
 
@@ -5987,11 +5992,15 @@ async def conservative_namespace_overview(
                 logger.warning(f"Failed to analyze pod {pod_name}: {e}")
                 findings[pod_name] = {"status": pod_status, "error": str(e)}
 
+        failed_pods = {name: f["error"] for name, f in findings.items() if "error" in f}
+        pods_analyzed = len(findings) - len(failed_pods)
+
         # Generate ultra-compact summary
         summary = {
             "namespace": namespace,
             "total_pods": total_pods,
-            "pods_analyzed": len(findings),
+            "pods_analyzed": pods_analyzed,
+            "pods_failed": len(failed_pods),
             "pods_with_issues": len([f for f in findings.values() if f.get("has_errors") or f.get("has_warnings")]),
             "critical_issues_found": len(issues_found),
             "analysis_strategy": f"conservative sampling of {min(max_pods, total_pods)}/{total_pods} pods"
@@ -5999,10 +6008,16 @@ async def conservative_namespace_overview(
 
         # Generate focused recommendations
         recommendations = []
+        if failed_pods:
+            first_pod, first_reason = next(iter(failed_pods.items()))
+            recommendations.append(
+                f"{len(failed_pods)}/{len(findings)} sampled pods could not be analyzed "
+                f"(e.g. {first_pod}: {first_reason[:150]}) - their health is unknown"
+            )
         if issues_found:
             recommendations.append(f"Found {len(issues_found)} issues requiring investigation")
             recommendations.extend(issues_found[:5])  # Top 5 issues only
-        else:
+        elif not failed_pods:
             recommendations.append("No critical issues detected in sampled pods")
 
         if total_pods > max_pods:
@@ -6016,7 +6031,7 @@ async def conservative_namespace_overview(
             "conservative_metadata": {
                 "token_budget": f"<{max_total_tokens:,} tokens (conservative)",
                 "sampling_strategy": sample_strategy,
-                "coverage_ratio": f"{len(findings)}/{total_pods}",
+                "coverage_ratio": f"{pods_analyzed}/{total_pods}",
                 "optimized_for": "large_namespaces"
             }
         }
@@ -6149,7 +6164,7 @@ async def adaptive_namespace_investigation(
 
         findings = {}
         critical_issues = []
-        pods_analyzed = 0
+        pods_attempted = 0
 
         # Prioritize pods for analysis
         if isinstance(pods_info, list) and pods_info:
@@ -6198,7 +6213,7 @@ async def adaptive_namespace_investigation(
                 batch_budget_needed = per_pod_budget * actual_batch_size
 
                 if not is_first_batch and not processor.can_process_more(batch_budget_needed):
-                    logger.info(f"Token budget exhausted - analyzed {pods_analyzed}/{pods_to_analyze} pods")
+                    logger.info(f"Token budget exhausted - attempted {pods_attempted}/{pods_to_analyze} pods")
                     break
 
                 batch = pods_to_process[batch_start:batch_start + batch_size]
@@ -6214,7 +6229,12 @@ async def adaptive_namespace_investigation(
 
                     if result["error"]:
                         findings[pod_name] = {"status": pod_status, "error": result["error"]}
-                    elif result["analysis"] and "error" not in result["analysis"]:
+                    elif not result["analysis"] or "error" in result["analysis"]:
+                        # Not analyzed (e.g. pods/log forbidden): keep the
+                        # reason, never count the pod as checked
+                        reason = (result["analysis"] or {}).get("error") or "no analysis returned"
+                        findings[pod_name] = {"status": pod_status, "error": str(reason)}
+                    else:
                         # INTELLIGENT FILTERING: Only keep essential data to prevent token overflow
                         filtered_analysis = _filter_analysis_for_synthesis(result["analysis"], focus_areas)
 
@@ -6238,14 +6258,20 @@ async def adaptive_namespace_investigation(
                             "processing_metrics", {}
                         ).get("estimated_tokens_used", per_pod_budget // 4)
                     processor.record_usage(max(actual_pod_tokens, 100))  # At least 100 tokens per pod
-                    pods_analyzed += 1
+                    pods_attempted += 1
 
-                logger.info(f"[{tool_name}] Analyzed {pods_analyzed}/{pods_to_analyze} pods so far")
+                logger.info(f"[{tool_name}] Attempted {pods_attempted}/{pods_to_analyze} pods so far")
 
                 # Early termination if many critical issues found
                 if len(critical_issues) >= 10:
                     logger.info(f"Early termination: {len(critical_issues)} critical issues found")
                     break
+
+        failed_pods = {name: f["error"] for name, f in findings.items() if "error" in f}
+        denied_pods = sum(1 for reason in failed_pods.values()
+                          if "forbidden" in reason.lower() or "403" in reason)
+        pods_analyzed = pods_attempted - len(failed_pods)
+        events_error = events_result.get("error")
 
         # Phase 3: Synthesis (10% of budget)
         synthesis_budget = int(token_budget * 0.1)
@@ -6257,6 +6283,7 @@ async def adaptive_namespace_investigation(
             "investigation_query": investigation_query,
             "total_pods_found": total_pods,
             "pods_analyzed": pods_analyzed,
+            "pods_failed": len(failed_pods),
             "critical_issues_found": len(critical_issues),
             "high_or_critical_events_found": event_critical_count,
             "token_budget_used": f"{min(processor.get_usage_percentage(), 100.0):.1f}%",
@@ -6265,14 +6292,25 @@ async def adaptive_namespace_investigation(
 
         # Generate recommendations based on findings
         recommendations = []
+        if failed_pods:
+            first_pod, first_reason = next(iter(failed_pods.items()))
+            recommendations.append(
+                f"{len(failed_pods)}/{pods_attempted} pods could not be analyzed "
+                f"(e.g. {first_pod}: {first_reason[:150]}) - their health is unknown"
+            )
+        if events_error:
+            recommendations.append(
+                f"Namespace events could not be read ({str(events_error)[:150]}) - event signals are missing"
+            )
         if critical_issues:
             recommendations.append(f"{len(critical_issues)} critical issues require immediate attention")
             recommendations.extend(critical_issues[:5])  # Top 5 issues
 
-        if pods_analyzed < total_pods:
-            recommendations.append(f"Only analyzed {pods_analyzed}/{total_pods} pods due to token constraints - consider focused investigation of remaining pods")
+        if pods_attempted < total_pods:
+            recommendations.append(f"Only analyzed {pods_attempted}/{total_pods} pods due to token constraints - consider focused investigation of remaining pods")
 
-        if not critical_issues and pods_analyzed > 5 and event_critical_count == 0:
+        if (not critical_issues and pods_analyzed > 5 and event_critical_count == 0
+                and not failed_pods and not events_error):
             recommendations.append("No critical issues detected in analyzed pods - namespace appears healthy")
 
         # FINAL TOKEN SAFETY: Return compressed results to prevent context overflow
@@ -6291,7 +6329,8 @@ async def adaptive_namespace_investigation(
                     requested=0,
                     discovered=total_pods,
                     scanned=pods_analyzed,
-                    denied=0,
+                    denied=denied_pods,
+                    skipped=len(failed_pods) - denied_pods,
                     requested_mode="all",
                 ),
                 "data_filtering": "applied to prevent token overflow",
@@ -9685,8 +9724,13 @@ async def resource_bottleneck_forecaster(
         if namespaces:
             for namespace in namespaces:
                 try:
-                    # Namespace CPU usage
-                    namespace_cpu_query = f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}"}}[5m])) * 100'
+                    # Container series only: the pod-level cgroup series
+                    # (container="") and the pause container ("POD") would
+                    # count the same usage again.
+                    selector = f'namespace="{_promql_label_value(namespace)}", container!="", container!="POD"'
+
+                    # Namespace CPU usage, in cores
+                    namespace_cpu_query = f'sum(rate(container_cpu_usage_seconds_total{{{selector}}}[5m]))'
 
                     # Get current namespace resource usage
                     cpu_result = await prometheus_query(namespace_cpu_query, source=source)
@@ -9701,14 +9745,14 @@ async def resource_bottleneck_forecaster(
                                 'resource_identifier': {'namespace': namespace, 'metric': 'cpu_usage_cores'},
                                 'current_usage': {'value': cpu_usage, 'unit': 'cores'},
                                 'predicted_exhaustion': None,  # Would need trend analysis
-                                'growth_rate': {'value': 0, 'unit': 'cores_per_5min'},
+                                'growth_rate': {'value': None, 'unit': 'cores_per_5min'},
                                 'contributing_factors': ['pod_scaling', 'workload_changes']
                             })
 
                     # Namespace memory usage — try primary metric, then fallback
                     memory_queries = [
-                        f'sum(container_memory_working_set_bytes{{namespace="{namespace}"}}) / 1024 / 1024 / 1024',
-                        f'sum(container_memory_usage_bytes{{namespace="{namespace}"}}) / 1024 / 1024 / 1024'
+                        f'sum(container_memory_working_set_bytes{{{selector}}}) / 1024 / 1024 / 1024',
+                        f'sum(container_memory_usage_bytes{{{selector}}}) / 1024 / 1024 / 1024'
                     ]
                     memory_usage_gb = 0
                     for memory_query in memory_queries:
@@ -9730,7 +9774,7 @@ async def resource_bottleneck_forecaster(
                             'resource_identifier': {'namespace': namespace, 'metric': 'memory_usage_gb'},
                             'current_usage': {'value': memory_usage_gb, 'unit': 'GB'},
                             'predicted_exhaustion': None,  # Would need trend analysis
-                            'growth_rate': {'value': 0, 'unit': 'GB_per_5min'},
+                            'growth_rate': {'value': None, 'unit': 'GB_per_5min'},
                             'contributing_factors': ['pod_scaling', 'memory_leaks', 'cache_growth']
                         })
 

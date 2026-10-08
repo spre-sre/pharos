@@ -50,7 +50,7 @@
         "unit": "percent_per_5min",
         "value": 2.5
       },
-      "predicted_exhaustion": "<TS>",
+      "predicted_exhaustion": "<TS>+00:00",
       "resource_identifier": {
         "metric": "cpu_utilization_percent",
         "node": "node-1"
@@ -71,7 +71,7 @@
         "unit": "percent_per_5min",
         "value": 2.5
       },
-      "predicted_exhaustion": "<TS>",
+      "predicted_exhaustion": "<TS>+00:00",
       "resource_identifier": {
         "metric": "memory_utilization_percent",
         "node": "node-1"
@@ -92,7 +92,7 @@
         "unit": "percent_per_5min",
         "value": 2.5
       },
-      "predicted_exhaustion": "<TS>",
+      "predicted_exhaustion": "<TS>+00:00",
       "resource_identifier": {
         "metric": "disk_utilization_percent",
         "mountpoint": "unknown",

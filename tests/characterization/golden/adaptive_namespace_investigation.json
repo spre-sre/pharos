@@ -27,6 +27,7 @@
     "investigation_query": "investigate all logs and events for potential issues",
     "namespace": "team-a",
     "pods_analyzed": 2,
+    "pods_failed": 0,
     "token_budget_used": "0.4%",
     "total_pods_found": 2
   },
