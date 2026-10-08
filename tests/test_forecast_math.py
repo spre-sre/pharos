@@ -409,6 +409,16 @@ def test_one_hot_sample_is_not_exhaustion():
     now = datetime.now(timezone.utc)
     metric = {"values": [[1000, "60"], [1300, "62"], [1600, "61"], [1900, "60"], [2200, "95"]]}
     trend = rf._usage_trend(metric, now)
+    # Projected from the trend (about 81 %), not "exhausted now"
+    assert trend["predicted_exhaustion"] != now.isoformat()
+    assert "already exhausted" not in (trend.get("exhaustion_note") or "")
+
+
+def test_spike_on_a_falling_trend_has_a_spike_note():
+    now = datetime.now(timezone.utc)
+    values = [[1000 + 300 * i, str(95 - 5 * i)] for i in range(10)] + [[4000, "91"]]  # 95 % falling to 50 %
+    metric = {"values": values}
+    trend = rf._usage_trend(metric, now)
     assert trend["predicted_exhaustion"] is None
     assert "spike" in trend["exhaustion_note"]
 
@@ -422,7 +432,8 @@ def test_exhausted_series_has_a_note():
 @pytest.mark.parametrize("values,note", [
     ([[1000, "50"], [1300, "49"], [1600, "48"]], "not growing"),
     ([[1000, "10"], [1300, "10.01"], [1600, "10.02"]], "in about 27.8 days, beyond the 24h horizon"),
-    ([[1000, "10"], [1300, "10.000001"], [1600, "10.000002"]], "not reached within 365 days"),
+    ([[1000, "10"], [1300, "10.000001"], [1600, "10.000002"]], "not reached within 365 days (projection limit)"),
+    ([[1000, "85"], [1300, "85.01"], [1600, "85.02"]], "in about 41.5 hours, beyond the 24h horizon"),
 ])
 def test_unprojected_exhaustion_has_a_note(values, note):
     trend = rf._usage_trend({"values": values}, datetime.now(timezone.utc), timedelta(days=1))
@@ -483,4 +494,22 @@ async def test_invalid_forecast_horizon_is_an_error(server, monkeypatch):
 
     monkeypatch.setattr(server, "prometheus_query", fake_prom)
     result = await server.resource_bottleneck_forecaster(forecast_horizon="1w")
+    assert "Invalid forecast_horizon" in result["error"]
+
+
+def test_steady_ramp_past_90_is_exhausted_not_a_spike():
+    now = datetime.now(timezone.utc)
+    values = [[1000 + 300 * i, str(50 + 4 * i)] for i in range(10)] + [[4000, "92"]]
+    trend = rf._usage_trend({"values": values}, now)
+    assert trend["predicted_exhaustion"] == now.isoformat()
+    assert "already exhausted" in trend["exhaustion_note"]
+
+
+@pytest.mark.asyncio
+async def test_overflowing_forecast_horizon_is_an_error(server, monkeypatch):
+    async def fake_prom(query, **kwargs):
+        return {"status": "success", "data": []}
+
+    monkeypatch.setattr(server, "prometheus_query", fake_prom)
+    result = await server.resource_bottleneck_forecaster(forecast_horizon="9999999999d")
     assert "Invalid forecast_horizon" in result["error"]

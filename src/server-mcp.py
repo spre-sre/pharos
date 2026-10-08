@@ -3310,9 +3310,9 @@ async def get_pod_logs(
 
     Returns:
         Dict with either:
-        - {"logs": {"container_name": "logs", ...}} on success, plus
-          "unread_containers": {"name": "reason"} when some containers'
-          logs could not be read (they are not in "logs")
+        - {"logs": {"container_name": "logs", ...}} on success, plus (only
+          with report_unread=True) "unread_containers": {"name": "reason"}
+          when some containers' logs could not be read (not in "logs")
         - {"error": "error_message"} on failure
     """
     _c = clients if clients is not None else _DefaultClientView()
@@ -9669,7 +9669,7 @@ async def resource_bottleneck_forecaster(
 
         try:
             parse_time_period(forecast_horizon)
-        except (ValueError, TypeError, AttributeError):
+        except (ValueError, TypeError, AttributeError, OverflowError):
             return {"error": f"Invalid forecast_horizon {forecast_horizon!r}: use a number "
                              "followed by s, m, h or d (e.g. '24h', '7d')"}
 

@@ -102,7 +102,9 @@ def _usage_trend(metric: Dict[str, Any], now: datetime,
     prometheus_query returns at most 50 downsampled points per series (the
     first and newest always kept), so the trend is fitted on the sample
     timestamps, never on the sample index. The current value is the newest
-    finite sample.
+    finite sample; exhaustion is judged and projected from the fitted value
+    at that sample (or the mean of the newest samples), so a single spike
+    neither counts as exhausted nor shifts the projection.
     """
     points = _series_points(metric)
     if not points:
@@ -110,11 +112,13 @@ def _usage_trend(metric: Dict[str, Any], now: datetime,
     current = points[-1][1]
 
     slope_per_second = None
+    fitted = current
     if len(points) >= 3 and len({ts for ts, _ in points}) >= 2:
         from scipy.stats import linregress
-        slope = linregress([ts for ts, _ in points], [v for _, v in points]).slope
-        if math.isfinite(slope):
-            slope_per_second = float(slope)
+        fit = linregress([ts for ts, _ in points], [v for _, v in points])
+        if math.isfinite(fit.slope) and math.isfinite(fit.intercept):
+            slope_per_second = float(fit.slope)
+            fitted = float(fit.intercept + fit.slope * points[-1][0])
 
     if horizon >= MAX_PROJECTION:
         horizon, horizon_label = MAX_PROJECTION, f'{MAX_PROJECTION.days}d'
@@ -123,27 +127,29 @@ def _usage_trend(metric: Dict[str, Any], now: datetime,
     recent_mean = sum(recent) / len(recent)
     predicted_exhaustion = None
     exhaustion_note = None
-    if recent_mean >= EXHAUSTION_PERCENT:
+    if recent_mean >= EXHAUSTION_PERCENT or fitted >= EXHAUSTION_PERCENT:
         predicted_exhaustion = now.isoformat()
-        exhaustion_note = (f'already exhausted: mean of the newest {len(recent)} samples '
-                           f'is at or above {EXHAUSTION_PERCENT:g} %')
-    elif current >= EXHAUSTION_PERCENT:
+        exhaustion_note = (f'already exhausted: trend value {fitted:.1f} %, mean of the newest '
+                           f'{len(recent)} samples {recent_mean:.1f} %')
+    elif current >= EXHAUSTION_PERCENT and not (slope_per_second and slope_per_second > 0):
         exhaustion_note = (f'not projected: newest sample is at or above {EXHAUSTION_PERCENT:g} % '
-                           f'but the mean of the newest {len(recent)} is {recent_mean:.1f} % (spike)')
+                           f'but the trend is {fitted:.1f} % and not rising (spike)')
     elif slope_per_second is None:
         exhaustion_note = 'not projected: no trend'
     elif slope_per_second <= 0:
         exhaustion_note = 'not projected: usage is not growing'
     else:
-        seconds = (EXHAUSTION_PERCENT - current) / slope_per_second
+        seconds = (EXHAUSTION_PERCENT - fitted) / slope_per_second
         if seconds <= horizon.total_seconds():
             predicted_exhaustion = (now + timedelta(seconds=seconds)).isoformat()
         elif seconds <= MAX_PROJECTION.total_seconds():
+            when = (f'{seconds / 3600:.1f} hours' if seconds < 2 * 86400
+                    else f'{seconds / 86400:.1f} days')
             exhaustion_note = (f'not projected: reaches {EXHAUSTION_PERCENT:g} % in about '
-                               f'{seconds / 86400:.1f} days, beyond the {horizon_label} horizon')
+                               f'{when}, beyond the {horizon_label} horizon')
         else:
             exhaustion_note = (f'not projected: {EXHAUSTION_PERCENT:g} % is not reached '
-                               f'within {MAX_PROJECTION.days} days')
+                               f'within {MAX_PROJECTION.days} days (projection limit)')
 
     trend = {
         'current': current,

@@ -8,6 +8,7 @@ coverage verdict "complete".
 """
 
 import importlib.util
+import json
 import os
 import sys
 from pathlib import Path
@@ -427,3 +428,16 @@ async def test_forbidden_in_a_pod_name_is_not_denied(server, monkeypatch):
 
     coverage = result["adaptive_metadata"]["coverage"]
     assert (coverage["denied"], coverage["skipped"]) == (0, 8)
+
+
+@pytest.mark.asyncio
+async def test_stream_tool_still_shows_why_a_container_is_unread(server, monkeypatch):
+    """The original regression: stream analysis said "No logs found for
+    container 'main'" and lost the reason once unread containers were
+    dropped from get_pod_logs for every caller."""
+    _patch_main_waiting(server, monkeypatch)
+
+    result = await server.stream_analyze_pod_logs(namespace="team-a", pod_name="pod-0", container_name="main")
+
+    assert "No logs found for container" not in json.dumps(result, default=str)
+    assert "waiting to start" in json.dumps(result, default=str)
