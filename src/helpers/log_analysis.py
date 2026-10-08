@@ -2138,60 +2138,59 @@ def _get_logs_with_k8s_client(
     return at_least_one_log_fetched
 
 
+_LINE_TS = re.compile(
+    r"^\s*\[?(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2}(?:\.\d+)?)(Z|[+-]\d{2}:?\d{2})?\]?(?:\s|$)"
+)
+
+
+def _line_timestamp(line: str) -> Optional[datetime]:
+    """Leading timestamp of a log line as aware UTC, or None.
+
+    Accepts "2024-01-15T10:30:45.123456789Z ...", the cleaned form
+    "[2024-01-15T10:30:45Z] [INFO] ..." and "2024-01-15 10:30:45 ...";
+    a timestamp without an offset is UTC (Kubernetes log timestamps are UTC).
+    """
+    m = _LINE_TS.match(line)
+    if not m:
+        return None
+    date, clock, offset = m.groups()
+    if "." in clock:
+        whole, frac = clock.split(".", 1)
+        clock = f"{whole}.{frac[:6]}"  # fromisoformat takes at most microseconds on 3.10
+    offset = "+00:00" if offset in (None, "Z") else offset
+    try:
+        parsed = datetime.fromisoformat(f"{date}T{clock}{offset}")
+    except ValueError:
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
 def _filter_logs_by_time_range(logs: str, until_time: datetime) -> str:
     """
-    Filter log lines to only include entries before the specified until_time.
+    Filter log lines to only include entries at or before until_time.
 
     Args:
-        logs: Raw log content with timestamps
-        until_time: Maximum timestamp (timezone-aware datetime)
+        logs: Raw log content with timestamps (raw or cleaned "[ts] ..." lines)
+        until_time: Maximum timestamp (naive values are treated as UTC)
 
     Returns:
-        Filtered log content
+        Filtered log content. Lines without a timestamp (continuations such as
+        stack frames) follow the line before them; the scan stops at the first
+        line newer than until_time (logs are chronological).
     """
     if not logs or not until_time:
         return logs
+    if until_time.tzinfo is None:
+        until_time = until_time.replace(tzinfo=timezone.utc)
 
     filtered_lines = []
     for line in logs.split('\n'):
         if not line.strip():
             continue
-
-        # Try to extract timestamp from the beginning of the line
-        # Common formats: "2024-01-15T10:30:45.123456Z" or "2024-01-15 10:30:45"
-        try:
-            # Check if line starts with a timestamp
-            timestamp_match = line.split()[0] if line else None
-            if timestamp_match:
-                # Handle different timestamp formats
-                if 'T' in timestamp_match:
-                    # ISO format
-                    log_time = datetime.fromisoformat(timestamp_match.replace('Z', '+00:00'))
-                else:
-                    # Try parsing date-time format
-                    try:
-                        # Try to get first two parts (date and time)
-                        parts = line.split()
-                        if len(parts) >= 2:
-                            datetime_str = f"{parts[0]} {parts[1]}"
-                            log_time = datetime.fromisoformat(datetime_str)
-                        else:
-                            continue
-                    except:
-                        continue
-
-                # Only include logs before until_time
-                if log_time <= until_time:
-                    filtered_lines.append(line)
-                else:
-                    # Logs are typically chronological, so we can break early
-                    break
-            else:
-                # Include lines without timestamps (might be continuation lines)
-                filtered_lines.append(line)
-        except (ValueError, IndexError):
-            # If timestamp parsing fails, include the line to be safe
-            filtered_lines.append(line)
+        log_time = _line_timestamp(line)
+        if log_time is not None and log_time > until_time:
+            break
+        filtered_lines.append(line)
 
     return '\n'.join(filtered_lines)
 

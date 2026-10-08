@@ -9,7 +9,7 @@
 import re
 import logging
 import statistics
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, List, Any, Optional
 from collections import Counter, defaultdict
@@ -28,6 +28,64 @@ logger = logging.getLogger("lumino-mcp")
 # After server import, _get_namespace_events_as_dicts' clients=None path resolves the
 # module-level k8s_core_api via _DefaultClientView().core_api exactly as before.
 _DefaultClientView = None
+
+_MIN_UTC = datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _to_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """Normalise a datetime to aware UTC. Naive values are assumed to be UTC."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _k8s_event_time_raw(event: Any) -> Optional[datetime]:
+    """First available time of a Kubernetes Event, as stored (may be naive or aware)."""
+    candidates = [
+        getattr(event, "last_timestamp", None),
+        getattr(event, "event_time", None),
+    ]
+    series = getattr(event, "series", None)
+    if series is not None:
+        candidates.append(getattr(series, "last_observed_time", None))
+    candidates.append(getattr(event, "first_timestamp", None))
+    # Last resort: when the Event object itself was created.
+    candidates.append(getattr(getattr(event, "metadata", None), "creation_timestamp", None))
+    for candidate in candidates:
+        if candidate is not None:
+            return candidate
+    return None
+
+
+def _k8s_event_time(event: Any) -> Optional[datetime]:
+    """Best event time of a Kubernetes Event as aware UTC, or None if it has none."""
+    return _to_utc(_k8s_event_time_raw(event))
+
+
+def _event_ts(event: Any) -> Optional[datetime]:
+    """Aware UTC timestamp of a classified event dict, or None when absent/unparseable."""
+    value = event.get("timestamp") if hasattr(event, "get") else event
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    if not isinstance(value, datetime):
+        return None
+    return _to_utc(value)
+
+
+def _ts_sort_key(event: Any):
+    """Ascending sort key: events without a timestamp sort first (oldest)."""
+    ts = _event_ts(event)
+    return (ts is not None, ts or _MIN_UTC)
+
+
+def _ts_iso(event: Any) -> Optional[str]:
+    ts = _event_ts(event)
+    return ts.isoformat() if ts is not None else None
 
 # ============================================================================
 # EVENT CLASSIFICATION ENUMS
@@ -70,9 +128,7 @@ class ProgressiveEventAnalyzer:
 
     def __init__(self, classified_events: List[Dict[str, Any]]):
         self.classified_events = classified_events
-        self.timeline_sorted = sorted(
-            classified_events, key=lambda x: x.get("timestamp", datetime.now())
-        )
+        self.timeline_sorted = sorted(classified_events, key=_ts_sort_key)
 
     def get_overview(self, max_items: int = 5) -> Dict[str, Any]:
         """Quick overview of event landscape."""
@@ -102,7 +158,7 @@ class ProgressiveEventAnalyzer:
                     "severity": e.get("severity"),
                     "category": e.get("category"),
                     "preview": e.get("event_string", "")[:80] + "...",
-                    "timestamp": e.get("timestamp", datetime.now()).isoformat(),
+                    "timestamp": _ts_iso(e),
                 }
                 for e in critical_events
             ],
@@ -111,7 +167,7 @@ class ProgressiveEventAnalyzer:
                     "severity": e.get("severity"),
                     "category": e.get("category"),
                     "preview": e.get("event_string", "")[:60] + "...",
-                    "timestamp": e.get("timestamp", datetime.now()).isoformat(),
+                    "timestamp": _ts_iso(e),
                 }
                 for e in recent_high_impact
             ],
@@ -186,9 +242,9 @@ class ProgressiveEventAnalyzer:
             # Group events by time windows (5-minute windows)
             time_windows = {}
             for event in self.classified_events:
-                timestamp = event.get("timestamp", datetime.now())
-                if isinstance(timestamp, str):
-                    timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                timestamp = _event_ts(event)
+                if timestamp is None:
+                    continue
 
                 # Round to 5-minute window
                 window_key = timestamp.replace(
@@ -227,9 +283,12 @@ class ProgressiveEventAnalyzer:
     def _find_event_correlations(self, seed_event: Dict[str, Any]) -> Dict[str, Any]:
         """Find correlations for a specific event."""
         try:
-            seed_timestamp = seed_event.get("timestamp", datetime.now())
-            if isinstance(seed_timestamp, str):
-                seed_timestamp = datetime.fromisoformat(seed_timestamp.replace("Z", "+00:00"))
+            seed_timestamp = _event_ts(seed_event)
+            if seed_timestamp is None:
+                return {
+                    "seed_event": seed_event.get("event_string", "")[:100] + "...",
+                    "related_events": [],
+                }
 
             related_events = []
 
@@ -238,9 +297,9 @@ class ProgressiveEventAnalyzer:
                 if event == seed_event:
                     continue
 
-                event_timestamp = event.get("timestamp", datetime.now())
-                if isinstance(event_timestamp, str):
-                    event_timestamp = datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
+                event_timestamp = _event_ts(event)
+                if event_timestamp is None:
+                    continue
 
                 time_diff = abs((event_timestamp - seed_timestamp).total_seconds())
                 if time_diff <= 600:  # Within 10 minutes
@@ -304,15 +363,15 @@ class ProgressiveEventAnalyzer:
 
             for i, critical_event in enumerate(critical_events):
                 # Look for events that follow this critical event
-                critical_time = critical_event.get("timestamp", datetime.now())
-                if isinstance(critical_time, str):
-                    critical_time = datetime.fromisoformat(critical_time.replace("Z", "+00:00"))
+                critical_time = _event_ts(critical_event)
+                if critical_time is None:
+                    continue
 
                 following_events = []
                 for event in self.timeline_sorted:
-                    event_time = event.get("timestamp", datetime.now())
-                    if isinstance(event_time, str):
-                        event_time = datetime.fromisoformat(event_time.replace("Z", "+00:00"))
+                    event_time = _event_ts(event)
+                    if event_time is None:
+                        continue
 
                     # Events within 30 minutes after critical event
                     if 0 < (event_time - critical_time).total_seconds() <= 1800:
@@ -447,10 +506,11 @@ class ProgressiveEventAnalyzer:
         patterns["category_distribution"] = category_counts
 
         # Time-based patterns
-        if len(self.timeline_sorted) > 1:
-            time_span = self.timeline_sorted[-1].get(
-                "timestamp", datetime.now()
-            ) - self.timeline_sorted[0].get("timestamp", datetime.now())
+        dated = [t for t in (_event_ts(e) for e in self.timeline_sorted) if t is not None]
+        if len(dated) > 1:
+            first_ts, last_ts = min(dated), max(dated)
+            # Undated events do not hide the span of the dated ones.
+            time_span = last_ts - first_ts
             patterns["time_span"] = str(time_span)
             events_per_hour = len(self.classified_events) / max(
                 time_span.total_seconds() / 3600, 0.1
@@ -495,8 +555,11 @@ class ProgressiveEventAnalyzer:
         if "time_range" in filters:
             # Filter by time range (last N hours)
             hours = filters["time_range"]
-            cutoff = datetime.now() - timedelta(hours=hours)
-            filtered = [e for e in filtered if e.get("timestamp", datetime.now()) >= cutoff]
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+            # Events without a timestamp cannot be shown to be inside the window.
+            filtered = [
+                e for e in filtered if _event_ts(e) is not None and _event_ts(e) >= cutoff
+            ]
 
         if "keywords" in filters:
             keywords = (
@@ -543,9 +606,7 @@ class ProgressiveEventAnalyzer:
                         if len(event.get("event_string", "")) > 100
                         else event.get("event_string", ""),
                         "severity": severity,
-                        "timestamp": event.get("timestamp", "").isoformat()
-                        if hasattr(event.get("timestamp", ""), "isoformat")
-                        else str(event.get("timestamp", "")),
+                        "timestamp": _ts_iso(event),
                     }
                 )
 
@@ -580,9 +641,7 @@ class ProgressiveEventAnalyzer:
                         if len(event.get("event_string", "")) > 100
                         else event.get("event_string", ""),
                         "category": category,
-                        "timestamp": event.get("timestamp", "").isoformat()
-                        if hasattr(event.get("timestamp", ""), "isoformat")
-                        else str(event.get("timestamp", "")),
+                        "timestamp": _ts_iso(event),
                     }
                 )
 
@@ -601,7 +660,7 @@ class ProgressiveEventAnalyzer:
             return {"message": "No events to analyze"}
 
         # Sort events by timestamp
-        sorted_events = sorted(events, key=lambda x: x.get("timestamp", datetime.now()))
+        sorted_events = sorted(events, key=_ts_sort_key)
 
         temporal_analysis = {
             "event_count": len(events),
@@ -611,26 +670,26 @@ class ProgressiveEventAnalyzer:
             "patterns": {},
         }
 
-        if len(sorted_events) > 1:
-            start_time = sorted_events[0].get("timestamp", datetime.now())
-            end_time = sorted_events[-1].get("timestamp", datetime.now())
+        dated = [t for t in (_event_ts(e) for e in sorted_events) if t is not None]
+        if len(dated) > 1:
+            start_time, end_time = min(dated), max(dated)
 
-            if hasattr(start_time, "total_seconds") or hasattr(end_time, "total_seconds"):
-                try:
-                    time_span = end_time - start_time
-                    temporal_analysis["time_span"] = str(time_span)
+            # Undated events do not hide the span of the dated ones.
+            try:
+                time_span = end_time - start_time
+                temporal_analysis["time_span"] = str(time_span)
 
-                    if time_span.total_seconds() > 0:
-                        rate = len(events) / (time_span.total_seconds() / 3600)
-                        temporal_analysis["event_rate"] = f"{rate:.1f} events/hour"
-                except (TypeError, ValueError, AttributeError):
-                    pass
+                if time_span.total_seconds() > 0:
+                    rate = len(events) / (time_span.total_seconds() / 3600)
+                    temporal_analysis["event_rate"] = f"{rate:.1f} events/hour"
+            except (TypeError, ValueError, AttributeError):
+                pass
 
         # Analyze patterns by hour
         hour_counts = {}
         for event in events:
-            timestamp = event.get("timestamp", datetime.now())
-            if hasattr(timestamp, "hour"):
+            timestamp = _event_ts(event)
+            if timestamp is not None:
                 hour = timestamp.hour
                 hour_counts[hour] = hour_counts.get(hour, 0) + 1
 
@@ -897,8 +956,8 @@ def calculate_relevance_score_from_string(event_str: str, focus_areas: List[str]
     return min(score, 2.0)  # Cap total score
 
 
-def extract_timestamp_from_string(event_str: str) -> datetime:
-    """Extract timestamp from event string."""
+def extract_timestamp_from_string(event_str: str) -> Optional[datetime]:
+    """Extract timestamp from event string as aware UTC; None if none is found."""
 
     # Try to find ISO timestamp (with T separator)
     iso_pattern = r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)"
@@ -909,7 +968,7 @@ def extract_timestamp_from_string(event_str: str) -> datetime:
             timestamp_str = match.group(1)
             if timestamp_str.endswith("Z"):
                 timestamp_str = timestamp_str[:-1] + "+00:00"
-            return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            return _to_utc(datetime.fromisoformat(timestamp_str.replace("Z", "+00:00")))
         except ValueError:
             pass
 
@@ -920,12 +979,12 @@ def extract_timestamp_from_string(event_str: str) -> datetime:
     if match:
         try:
             timestamp_str = match.group(1) + "T" + match.group(2)
-            return datetime.fromisoformat(timestamp_str)
+            return _to_utc(datetime.fromisoformat(timestamp_str))
         except ValueError:
             pass
 
-    # Fallback to current time
-    return datetime.now()
+    # No timestamp found: never fabricate one
+    return None
 
 
 def estimate_string_event_tokens(event_str: str) -> int:
@@ -966,7 +1025,7 @@ def smart_sample_string_events(
     # Sort by priority
     def sort_key(e):
         severity_weight = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}.get(e["severity"], 0)
-        return (severity_weight, e["relevance_score"], e["timestamp"])
+        return (severity_weight, e["relevance_score"], e["timestamp"] or _MIN_UTC)
 
     classified_events.sort(key=sort_key, reverse=True)
 
@@ -1027,9 +1086,13 @@ def generate_string_events_summary(
 
     # Time range analysis
     if classified_events:
-        timestamps = [event["timestamp"] for event in classified_events]
-        time_span = max(timestamps) - min(timestamps)
-        event_rate = total_events / max(time_span.total_seconds() / 3600, 0.1)  # events per hour
+        timestamps = [event["timestamp"] for event in classified_events if event["timestamp"]]
+        if timestamps:
+            time_span = max(timestamps) - min(timestamps)
+            event_rate = total_events / max(time_span.total_seconds() / 3600, 0.1)  # events/hour
+        else:
+            time_span = timedelta(0)
+            event_rate = 0
     else:
         time_span = timedelta(0)
         event_rate = 0
@@ -1077,7 +1140,7 @@ def generate_string_events_insights(classified_events: List[Dict[str, Any]]) -> 
         )
 
     # Temporal insights
-    timestamps = [e["timestamp"] for e in classified_events]
+    timestamps = [e["timestamp"] for e in classified_events if e["timestamp"]]
     if len(timestamps) > 1:
         time_span = max(timestamps) - min(timestamps)
         if time_span.total_seconds() < 3600:  # Less than 1 hour
@@ -1212,12 +1275,14 @@ class MLPatternDetector:
             return []
 
         # Calculate event intervals
-        sorted_events = sorted(self.events, key=lambda x: x.get("timestamp", datetime.now()))
+        sorted_events = sorted(self.events, key=_ts_sort_key)
         intervals = []
 
         for i in range(1, len(sorted_events)):
-            prev_time = sorted_events[i - 1].get("timestamp", datetime.now())
-            curr_time = sorted_events[i].get("timestamp", datetime.now())
+            prev_time = _event_ts(sorted_events[i - 1])
+            curr_time = _event_ts(sorted_events[i])
+            if prev_time is None or curr_time is None:
+                continue
             interval = (curr_time - prev_time).total_seconds()
             intervals.append(interval)
 
@@ -1255,8 +1320,10 @@ class MLPatternDetector:
         # Group events by hour
         hourly_counts = defaultdict(int)
         for event in self.events:
-            hour = event.get("timestamp", datetime.now()).hour
-            hourly_counts[hour] += 1
+            ts = _event_ts(event)
+            if ts is None:
+                continue
+            hourly_counts[ts.hour] += 1
 
         # Calculate frequency statistics
         frequencies = list(hourly_counts.values())
@@ -1297,7 +1364,9 @@ class MLPatternDetector:
         time_features = {"hour_of_day": [], "day_of_week": [], "minute_of_hour": []}
 
         for event in self.events:
-            timestamp = event.get("timestamp", datetime.now())
+            timestamp = _event_ts(event)
+            if timestamp is None:
+                continue
             time_features["hour_of_day"].append(timestamp.hour)
             time_features["day_of_week"].append(timestamp.weekday())
             time_features["minute_of_hour"].append(timestamp.minute)
@@ -1355,7 +1424,7 @@ class MLPatternDetector:
 
         try:
             # Sort events by time
-            sorted_events = sorted(self.events, key=lambda x: x.get("timestamp", datetime.now()))
+            sorted_events = sorted(self.events, key=_ts_sort_key)
 
             # Look for severity escalation patterns
             for i in range(len(sorted_events) - 1):
@@ -1373,10 +1442,11 @@ class MLPatternDetector:
 
                 # Check for escalation
                 if next_level > current_level:
-                    time_diff = (
-                        next_event.get("timestamp", datetime.now())
-                        - current_event.get("timestamp", datetime.now())
-                    ).total_seconds()
+                    next_ts = _event_ts(next_event)
+                    current_ts = _event_ts(current_event)
+                    if next_ts is None or current_ts is None:
+                        continue
+                    time_diff = (next_ts - current_ts).total_seconds()
 
                     escalations.append(
                         {
@@ -1476,9 +1546,7 @@ class MLPatternDetector:
                                 "rarity_score": 1 - frequency,
                                 "pattern": pattern,
                                 "severity": event.get("severity", "UNKNOWN"),
-                                "timestamp": event.get("timestamp", datetime.now()).isoformat()
-                                if isinstance(event.get("timestamp"), datetime)
-                                else str(event.get("timestamp", "")),
+                                "timestamp": _ts_iso(event),
                             }
                         )
 
@@ -1497,23 +1565,15 @@ class MLPatternDetector:
         }
 
         try:
-            # Analyze trending patterns — use timezone-aware now() to match parsed timestamps
-            now = datetime.now()
+            # Analyze trending patterns — compare aware UTC to aware UTC
+            now = datetime.now(timezone.utc)
             recent_events = []
             for e in self.events:
-                ts = e.get("timestamp", now)
-                try:
-                    # Handle both naive and aware datetimes
-                    if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
-                        from datetime import timezone
-
-                        diff = (datetime.now(timezone.utc) - ts).total_seconds()
-                    else:
-                        diff = (now - ts).total_seconds()
-                    if diff < 3600:
-                        recent_events.append(e)
-                except (TypeError, ValueError):
-                    pass
+                ts = _event_ts(e)
+                if ts is None:
+                    continue
+                if (now - ts).total_seconds() < 3600:
+                    recent_events.append(e)
 
             if len(recent_events) > len(self.events) * 0.5:  # More than 50% of events in last hour
                 indicators["trending_issues"].append("High event frequency in recent period")
@@ -2411,7 +2471,7 @@ def _extract_events_from_progressive(base_result: dict) -> list:
                     "event_string": ev.get("event_string", ""),
                     "severity": ev.get("severity"),
                     "category": category,
-                    "timestamp": ev.get("timestamp", datetime.now().isoformat()),
+                    "timestamp": ev.get("timestamp"),
                     "relevance_score": ev.get("relevance_score", 0),
                 })
         return events
@@ -2431,7 +2491,7 @@ def _extract_events_from_progressive(base_result: dict) -> list:
                 "event_string": ev.get("preview", ""),
                 "severity": ev.get("severity"),
                 "category": ev.get("category"),
-                "timestamp": ev.get("timestamp", datetime.now().isoformat()),
+                "timestamp": ev.get("timestamp"),
                 "relevance_score": ev.get("relevance_score", 0),
             })
 
@@ -2488,7 +2548,7 @@ async def _get_namespace_events_internal(
         if time_period is not None:
             try:
                 time_delta = parse_time_period(time_period)
-                cutoff_time = datetime.now() - time_delta
+                cutoff_time = datetime.now(timezone.utc) - time_delta
                 output["applied_filters"]["time_period"] = time_period
                 output["applied_filters"]["cutoff_time"] = cutoff_time.isoformat()
             except Exception as e:
@@ -2539,18 +2599,14 @@ async def _get_namespace_events_internal(
                     break
 
                 if cutoff_time and event_list_response.items:
-                    def get_event_time(event):
-                        timestamp = event.last_timestamp or event.first_timestamp
-                        if timestamp is None:
-                            return datetime.max
-                        if timestamp.tzinfo is not None:
-                            return timestamp.replace(tzinfo=None)
-                        return timestamp
+                    # Undated events cannot show the page reached the cutoff: ignore them.
+                    page_times = [
+                        t for t in map(_k8s_event_time, event_list_response.items)
+                        if t is not None
+                    ]
+                    oldest_time = min(page_times) if page_times else None
 
-                    oldest_in_page = min(event_list_response.items, key=get_event_time)
-                    oldest_time = get_event_time(oldest_in_page)
-
-                    if oldest_time < cutoff_time:
+                    if oldest_time is not None and oldest_time < cutoff_time:
                         logger.info(f"Reached events older than cutoff time")
                         break
 
@@ -2569,13 +2625,10 @@ async def _get_namespace_events_internal(
         logger.info(f"Found {original_count} events in namespace '{namespace}'")
 
         # Sort events by timestamp (most recent first)
+        # Events without any time sort last.
         def get_comparable_timestamp(event):
-            timestamp = event.last_timestamp or event.first_timestamp
-            if timestamp is None:
-                return datetime.min.replace(tzinfo=None)
-            if timestamp.tzinfo is not None:
-                return timestamp.replace(tzinfo=None)
-            return timestamp
+            t = _k8s_event_time(event)
+            return (t is not None, t or _MIN_UTC)
 
         events = sorted(all_events, key=get_comparable_timestamp, reverse=True)
 
@@ -2583,8 +2636,9 @@ async def _get_namespace_events_internal(
         if time_period is not None and cutoff_time is not None:
             filtered_events = []
             for event in events:
-                event_time = get_comparable_timestamp(event)
-                if event_time >= cutoff_time:
+                event_time = _k8s_event_time(event)
+                # Undated events cannot be shown to be inside the window.
+                if event_time is not None and event_time >= cutoff_time:
                     filtered_events.append(event)
             events = filtered_events
             logger.info(f"Filtered to {len(events)} events after time period filter")
@@ -2598,7 +2652,7 @@ async def _get_namespace_events_internal(
         # Convert events to string format
         for event in events:
             try:
-                timestamp = event.last_timestamp or event.first_timestamp or "Unknown"
+                timestamp = _k8s_event_time_raw(event) or "Unknown"
                 event_str = f"[{timestamp}] {event.type}: {event.reason} - {event.message}"
                 if event.involved_object:
                     event_str += f" (Object: {event.involved_object.kind}/{event.involved_object.name})"
@@ -2662,7 +2716,7 @@ async def _get_namespace_events_as_dicts(
         if time_period is not None:
             try:
                 time_delta = parse_time_period(time_period)
-                cutoff_time = datetime.now() - time_delta
+                cutoff_time = datetime.now(timezone.utc) - time_delta
             except Exception as e:
                 logger.debug(f"Error parsing time period: {e}")
 
@@ -2679,12 +2733,10 @@ async def _get_namespace_events_as_dicts(
             try:
                 # Apply time filter if specified
                 if cutoff_time:
-                    event_time = event.last_timestamp or event.first_timestamp
-                    if event_time:
-                        if event_time.tzinfo is not None:
-                            event_time = event_time.replace(tzinfo=None)
-                        if event_time < cutoff_time:
-                            continue
+                    event_time = _k8s_event_time(event)
+                    # Undated events cannot be shown to be inside the window.
+                    if event_time is None or event_time < cutoff_time:
+                        continue
 
                 # Convert to dict format expected by FailureEventCollector
                 event_dict = {
@@ -2771,7 +2823,7 @@ async def _progressive_event_analysis_core(
                 "severity": event.get("severity"),
                 "category": event.get("category"),
                 "relevance_score": event.get("relevance_score", 0),
-                "timestamp": datetime.fromisoformat(event.get("timestamp", datetime.now().isoformat())),
+                "timestamp": _event_ts({"timestamp": event.get("timestamp")}),
                 "token_estimate": event.get("token_estimate", 0)
             })
 
@@ -2797,7 +2849,7 @@ async def _progressive_event_analysis_core(
                         "severity": event.get("severity"),
                         "category": event.get("category"),
                         "relevance_score": event.get("relevance_score", 0),
-                        "timestamp": datetime.fromisoformat(event.get("timestamp", datetime.now().isoformat())),
+                        "timestamp": _event_ts({"timestamp": event.get("timestamp")}),
                         "token_estimate": event.get("token_estimate", 0)
                     })
                 if classified_events:
@@ -2826,7 +2878,7 @@ async def _progressive_event_analysis_core(
             "analysis_level": analysis_level,
             "total_events": len(classified_events),
             "time_period": time_period,
-            "generated_at": datetime.now().isoformat()
+            "generated_at": datetime.now(timezone.utc).isoformat()
         }
 
         if analysis_level == "overview":

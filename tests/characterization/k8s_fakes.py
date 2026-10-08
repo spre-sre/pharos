@@ -177,7 +177,9 @@ def EVENT(reason, message, ns, kind="Pod", name="p", type_="Warning", count=1):
     # Strip microseconds so the formatted string "2026-07-22 09:30:05" is fully
     # covered by ISO_RE (\d{4}-...\d{2}:\d{2}:\d{2}) when normalize() runs.
     # Without this, the golden would contain unstable ".763146" suffixes.
-    _now = datetime.datetime.now().replace(microsecond=0)
+    # Naive UTC wall clock: matches the naive format the goldens were recorded with
+    # and is read as UTC by the event helpers on any host timezone.
+    _now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0, tzinfo=None)
     return obj(
         metadata=dict(name=f"{name}.{reason.lower()}", namespace=ns),
         reason=reason, message=message, type=type_, count=count,

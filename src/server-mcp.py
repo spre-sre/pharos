@@ -17,7 +17,7 @@ import functools
 import logging
 import requests
 import aiohttp
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union, Callable
 from mcp.server.fastmcp import FastMCP, Context
@@ -806,7 +806,7 @@ from helpers.prometheus import (
     _generate_query_suggestions,
 )
 from helpers.utils import _safe_compile_namespace_filter, _parse_time_parameter, _handle_api_exception, _get_fallback_cluster_health
-from helpers.utils import list_nodes_bounded
+from helpers.utils import list_nodes_bounded, _to_utc
 from helpers.utils import _get_active_node_names  # noqa: F401 - re-exported for test monkeypatch surface
 from helpers.event_analysis import (  # noqa: F401 - re-exported for test monkeypatch surface
     _compress_events_for_synthesis,
@@ -2196,6 +2196,11 @@ async def get_pipelinerun_logs(
     _gerr = _gate_extension("get_pipelinerun_logs", source)
     if _gerr:
         return _gerr
+    if since_time:
+        try:
+            _to_utc(since_time)
+        except (AttributeError, TypeError, ValueError):
+            return {"error": f"Invalid since_time {since_time!r}: use RFC3339, e.g. 2026-01-15T10:30:00Z"}
     # Build log filtering info for logging
     filter_info = []
     if since_time:
@@ -3036,7 +3041,7 @@ async def smart_get_namespace_events(
                         "severity": event["severity"],
                         "category": event["category"],
                         "relevance_score": round(event["relevance_score"], 2),
-                        "timestamp": event["timestamp"].isoformat(),
+                        "timestamp": event["timestamp"].isoformat() if event.get("timestamp") else None,
                         "token_estimate": event["token_estimate"]
                     }
                     for event in selected_events
@@ -5299,6 +5304,7 @@ async def smart_summarize_pod_logs(
         _window = make_time_window(
             since_seconds=since_seconds, time_period=time_period,
             start_time=start_time, end_time=end_time)
+        _k8s_window = None  # (start, end) when end_time bounds the k8s path
 
         if _log_adapter is not None:
             # FILE/OTLP-SOURCE PATH: bypass k8s entirely (no volume estimate).
@@ -5365,6 +5371,21 @@ async def smart_summarize_pod_logs(
                 log_params = time_config['log_params'].copy()
                 time_info = time_config['time_info']
 
+                # end_time (H08): the API has no "until", so read back to the
+                # window start (end_time alone = the hour before it) and drop
+                # lines after end_time once the logs are in.
+                if _window.end is not None:
+                    _start = _window.start or (_window.end - timedelta(hours=1))
+                    if _start >= _window.end:
+                        return {"error": (
+                            f"Invalid time range: start {_start.isoformat()} is not before "
+                            f"end_time {_window.end.isoformat()}")}
+                    _k8s_window = (_start, _window.end)
+                    log_params['since_seconds'] = max(
+                        1, int((datetime.now(timezone.utc) - _start).total_seconds()))
+                    time_info = {**time_info, 'window_start': _start.isoformat(),
+                                 'window_end': _window.end.isoformat()}
+
                 if tail_lines is not None:
                     log_params['tail_lines'] = tail_lines
 
@@ -5391,6 +5412,21 @@ async def smart_summarize_pod_logs(
                 "error": "No logs found for the specified pod",
                 "metadata": {"pod_name": pod_name, "namespace": namespace}
             }
+
+        if _k8s_window is not None:
+            raw_logs["logs"] = {
+                c: (_filter_logs_by_time_range(text, _k8s_window[1]) if isinstance(text, str) else text)
+                for c, text in raw_logs["logs"].items()
+            }
+            if not any(isinstance(t, str) and t.strip() for t in raw_logs["logs"].values()):
+                hint = (" tail_lines selects the newest lines, which are all after end_time;"
+                        " use start_time instead." if tail_lines is not None else "")
+                return {
+                    "error": f"No log lines between {_k8s_window[0].isoformat()} and "
+                             f"{_k8s_window[1].isoformat()}.{hint}",
+                    "metadata": {"pod_name": pod_name, "namespace": namespace,
+                                 "requested_window": [_k8s_window[0].isoformat(), _k8s_window[1].isoformat()]},
+                }
 
         # Step 2: Process logs for the target container or combine all containers
         all_log_lines = []
@@ -5504,6 +5540,10 @@ async def smart_summarize_pod_logs(
                 **({"requested_window": list(_prov.requested_window),
                     "covered_window": list(_covered)}
                    if _covered is not None else {}),
+                # Only when end_time bounds the k8s path, so other k8s goldens
+                # stay byte-identical.
+                **({"requested_window": [_k8s_window[0].isoformat(), _k8s_window[1].isoformat()]}
+                   if _k8s_window is not None else {}),
             }
         }
 
@@ -6357,6 +6397,8 @@ async def get_etcd_logs(
         try:
             # Validate RFC3339 timestamp format
             parsed_since_time = datetime.fromisoformat(since_time.replace('Z', '+00:00'))
+            if parsed_since_time.tzinfo is None:  # naive = UTC (Kubernetes time)
+                parsed_since_time = parsed_since_time.replace(tzinfo=timezone.utc)
         except ValueError as e:
             logger.error(f"[{tool_name}] Invalid since_time format: {since_time}")
             return {"critical_error": f"Invalid since_time format '{since_time}'. Use RFC3339 format (e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00'): {str(e)}"}
@@ -6365,6 +6407,8 @@ async def get_etcd_logs(
         try:
             # Validate RFC3339 timestamp format
             parsed_until_time = datetime.fromisoformat(until_time.replace('Z', '+00:00'))
+            if parsed_until_time.tzinfo is None:  # naive = UTC (Kubernetes time)
+                parsed_until_time = parsed_until_time.replace(tzinfo=timezone.utc)
         except ValueError as e:
             logger.error(f"[{tool_name}] Invalid until_time format: {until_time}")
             return {"critical_error": f"Invalid until_time format '{until_time}'. Use RFC3339 format (e.g., '2024-01-15T11:30:00Z' or '2024-01-15T11:30:00'): {str(e)}"}
@@ -7231,10 +7275,14 @@ async def advanced_event_analytics(
             if isinstance(ts_raw, datetime):
                 ts = ts_raw
             else:
+                # Undated stays undated (None): a now() placeholder made old or
+                # unparseable events look current and mixed naive/aware times.
                 try:
-                    ts = datetime.fromisoformat(ts_raw)
+                    ts = datetime.fromisoformat(str(ts_raw).replace("Z", "+00:00"))
                 except (ValueError, TypeError):
-                    ts = datetime.now()
+                    ts = None
+            if ts is not None and ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
             events_data.append({
                 "event_string": event.get("event_string", ""),
                 "severity": event.get("severity"),
