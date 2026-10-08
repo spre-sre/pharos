@@ -431,10 +431,9 @@ def test_levelling_off_curve_is_not_already_exhausted():
     data at the newest sample; that alone must not read as exhausted."""
     now = datetime.now(timezone.utc)
     values = [[1000 + 300 * i, str(85 - 45 * math.exp(-i / 6))] for i in range(50)]
-    trend = rf._usage_trend({"values": values}, now)
-    assert "already exhausted" not in (trend.get("exhaustion_note") or "")
-    assert trend["predicted_exhaustion"] != now.isoformat()
-    assert trend["predicted_exhaustion"] is None or "above the recent data" not in trend["exhaustion_note"]
+    trend = rf._usage_trend({"values": values}, now, timedelta(hours=24), "24h")
+    assert trend["predicted_exhaustion"] is None
+    assert "levelling off" in trend["exhaustion_note"]
 
 
 def test_drop_at_the_end_is_not_exhausted_or_projected():
@@ -444,7 +443,7 @@ def test_drop_at_the_end_is_not_exhausted_or_projected():
     values = [[1000 + 300 * i, str(50 + 5 * i)] for i in range(10)] + [[4000, "40"]]
     trend = rf._usage_trend({"values": values}, now)
     assert trend["predicted_exhaustion"] is None
-    assert "above the recent data" in trend["exhaustion_note"]
+    assert "far below the trend" in trend["exhaustion_note"]
 
 
 def test_two_points_cannot_be_exhausted_on_one_hot_sample():
@@ -599,3 +598,24 @@ def test_small_jump_on_a_clean_ramp_is_not_a_spike():
     assert "spike" not in (trend.get("exhaustion_note") or "")
     assert trend["predicted_exhaustion"] is not None
     assert datetime.fromisoformat(trend["predicted_exhaustion"]) - now < timedelta(minutes=30)
+
+
+@pytest.mark.parametrize("offset", [0.0, 0.6, 1.2])
+def test_noisy_ramp_reaching_90_is_never_dropped(offset):
+    """The whole-window trend reaches 90 % one step before the samples do;
+    the newest samples are still rising, so it is now or a forecast."""
+    noise = [0.5, -0.7, 0.2, -0.3, 0.6, -0.5, 0.1, -0.6, 0.4, -0.2]
+    values = [60 + offset + 0.6 * i + noise[i % 10] for i in range(50)]
+    now = datetime.now(timezone.utc)
+    trend = rf._usage_trend(_ts_values(values), now, timedelta(hours=24), "24h")
+    assert trend["predicted_exhaustion"] is not None, trend
+    assert datetime.fromisoformat(trend["predicted_exhaustion"]) - now < timedelta(minutes=30)
+
+
+def test_flat_series_hovering_at_90_is_exhausted_now():
+    """Whole-window trend just above 90 %, newest samples flat and within
+    their noise of 90 %: at the threshold now, not "no longer rising"."""
+    values = [80 + 0.4 * i for i in range(25)] + [89.6 + (0.4 if i % 2 else -0.4) for i in range(25)]
+    now = datetime.now(timezone.utc)
+    trend = rf._usage_trend(_ts_values(values), now, timedelta(hours=24), "24h")
+    assert trend["predicted_exhaustion"] == now.isoformat(), trend

@@ -63,6 +63,10 @@ _RECENT_SAMPLES = 3
 # _SPIKE_MIN_GAP percentage points above the trend value.
 _SPIKE_NOISE_FACTOR = 3.0
 _SPIKE_MIN_GAP = 5.0
+# Newest samples fitted on their own when the whole-window trend has reached
+# EXHAUSTION_PERCENT but the data have not: a ramp still rises there, a
+# curve that levels off does not.
+_LOCAL_SAMPLES = 10
 
 # (resource_type, PromQL, result limit, contributing factors)
 _NODE_QUERIES = (
@@ -97,6 +101,19 @@ def _series_points(metric: Dict[str, Any]) -> List[Tuple[float, float]]:
         if math.isfinite(ts) and math.isfinite(value):
             points.append((ts, value))
     return points
+
+
+def _local_trend(points: List[Tuple[float, float]]) -> Optional[Tuple[float, float, float]]:
+    """(slope per second, trend value at the newest sample, median absolute
+    deviation from the trend) of a few points."""
+    if len(points) < 3 or len({ts for ts, _ in points}) < 2:
+        return None
+    from scipy.stats import theilslopes
+    slope, intercept = theilslopes([v for _, v in points], [ts for ts, _ in points])[:2]
+    if not (math.isfinite(slope) and math.isfinite(intercept)):
+        return None
+    residuals = sorted(abs(v - (intercept + slope * ts)) for ts, v in points)
+    return float(slope), float(intercept + slope * points[-1][0]), float(residuals[len(residuals) // 2])
 
 
 def _usage_trend(metric: Dict[str, Any], now: datetime,
@@ -135,9 +152,10 @@ def _usage_trend(metric: Dict[str, Any], now: datetime,
     horizon_label = horizon_label or f'{horizon.total_seconds() / 3600:g}h'
     recent = [v for _, v in points[-_RECENT_SAMPLES:]]
     recent_mean = sum(recent) / len(recent)
-    # A newest sample this far above the level is an outlier, not the trend
-    spike = current >= EXHAUSTION_PERCENT and (
-        level is None or current - level > max(_SPIKE_NOISE_FACTOR * noise, _SPIKE_MIN_GAP))
+    # A newest sample this far from the level is an outlier, not the trend
+    outlier_gap = max(_SPIKE_NOISE_FACTOR * noise, _SPIKE_MIN_GAP)
+    spike = current >= EXHAUSTION_PERCENT and (level is None or current - level > outlier_gap)
+    dip = level is not None and level - current > outlier_gap
 
     predicted_exhaustion = None
     exhaustion_note = None
@@ -151,9 +169,32 @@ def _usage_trend(metric: Dict[str, Any], now: datetime,
         exhaustion_note = (f'not projected: newest sample {current:.1f} % is a spike'
                            + (f' above the trend value {level:.1f} %' if level is not None else '')
                            + f' (mean of the newest {len(recent)} sample(s) {recent_mean:.1f} %)')
+    elif dip and level >= EXHAUSTION_PERCENT:
+        exhaustion_note = (f'not projected: newest sample {current:.1f} % is far below the '
+                           f'trend value {level:.1f} %')
     elif level is not None and level >= EXHAUSTION_PERCENT:
-        exhaustion_note = (f'not projected: the trend value {level:.1f} % is above the recent '
-                           f'data (mean {recent_mean:.1f} %, newest {current:.1f} %)')
+        # The whole-window trend says 90 %, the data are just under it:
+        # decide on the newest samples alone
+        local = _local_trend(points[-_LOCAL_SAMPLES:])
+        if local is not None and local[0] > 0:
+            local_slope, local_level, _ = local
+            seconds = max(0.0, (EXHAUSTION_PERCENT - local_level) / local_slope)
+            if seconds <= horizon.total_seconds():
+                predicted_exhaustion = (now + timedelta(seconds=seconds)).isoformat()
+                exhaustion_note = (f'trend value {level:.1f} %, newest samples {local_level:.1f} % '
+                                   f'and rising')
+            else:
+                exhaustion_note = (f'not projected: the newest samples ({local_level:.1f} %) '
+                                   f'rise too slowly to reach {EXHAUSTION_PERCENT:g} % within '
+                                   f'the {horizon_label} horizon; usage is levelling off')
+        elif local is not None and EXHAUSTION_PERCENT - recent_mean <= 2 * local[2]:
+            # Hovering at the threshold: the gap is within the samples' noise
+            predicted_exhaustion = now.isoformat()
+            exhaustion_note = (f'at {EXHAUSTION_PERCENT:g} % now: trend value {level:.1f} %, newest '
+                               f'samples {recent_mean:.1f} % within their noise')
+        else:
+            exhaustion_note = (f'not projected: the trend value {level:.1f} % is above the recent '
+                               f'data (mean {recent_mean:.1f} %), which no longer rise')
     elif slope_per_second is None:
         exhaustion_note = 'not projected: no trend'
     elif slope_per_second <= 0:
