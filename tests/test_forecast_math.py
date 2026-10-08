@@ -14,6 +14,7 @@ H14: namespace CPU was multiplied by 100 and shown as "cores", summed the
 
 import importlib.util
 import os
+import math
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -409,9 +410,47 @@ def test_one_hot_sample_is_not_exhaustion():
     now = datetime.now(timezone.utc)
     metric = {"values": [[1000, "60"], [1300, "62"], [1600, "61"], [1900, "60"], [2200, "95"]]}
     trend = rf._usage_trend(metric, now)
-    # Projected from the trend (about 81 %), not "exhausted now"
-    assert trend["predicted_exhaustion"] != now.isoformat()
+    assert trend["predicted_exhaustion"] is None
+    assert "spike" in trend["exhaustion_note"]
+
+
+@pytest.mark.parametrize("values", [
+    [60.0] * 49 + [95.0],                              # flat, then one spike
+    [60.0, 60.01, 60.02, 60.03, 95.0],                 # few points, then one spike
+    [60 + (2 if i % 2 else -2) for i in range(49)] + [95.0],  # noisy flat, then one spike
+])
+def test_one_spike_creates_no_forecast(values):
+    now = datetime.now(timezone.utc)
+    trend = rf._usage_trend({"values": [[1000 + 300 * i, str(v)] for i, v in enumerate(values)]}, now)
+    assert trend["predicted_exhaustion"] is None
+    assert "spike" in trend["exhaustion_note"]
+
+
+def test_levelling_off_curve_is_not_already_exhausted():
+    """A straight line through a curve that levels off at 85 % is above the
+    data at the newest sample; that alone must not read as exhausted."""
+    now = datetime.now(timezone.utc)
+    values = [[1000 + 300 * i, str(85 - 45 * math.exp(-i / 6))] for i in range(50)]
+    trend = rf._usage_trend({"values": values}, now)
     assert "already exhausted" not in (trend.get("exhaustion_note") or "")
+    assert trend["predicted_exhaustion"] != now.isoformat()
+
+
+def test_projection_starts_from_the_current_value():
+    """A ramp to 95 % that drops to 40 %: projected from 40 %, not from the trend."""
+    now = datetime.now(timezone.utc)
+    values = [[1000 + 300 * i, str(50 + 5 * i)] for i in range(10)] + [[4000, "40"]]
+    trend = rf._usage_trend({"values": values}, now)
+    exhaustion = datetime.fromisoformat(trend["predicted_exhaustion"])
+    seconds = (90 - 40) / (trend["growth_per_5min"] / 300)
+    assert abs((exhaustion - now).total_seconds() - seconds) < 1
+
+
+def test_two_points_cannot_be_exhausted_on_one_hot_sample():
+    now = datetime.now(timezone.utc)
+    trend = rf._usage_trend({"values": [[1000, "50"], [1300, "95"]]}, now)
+    assert trend["predicted_exhaustion"] is None
+    assert "spike" in trend["exhaustion_note"]
 
 
 def test_spike_on_a_falling_trend_has_a_spike_note():
@@ -499,7 +538,7 @@ async def test_invalid_forecast_horizon_is_an_error(server, monkeypatch):
 
 def test_steady_ramp_past_90_is_exhausted_not_a_spike():
     now = datetime.now(timezone.utc)
-    values = [[1000 + 300 * i, str(50 + 4 * i)] for i in range(10)] + [[4000, "92"]]
+    values = [[1000 + 300 * i, str(50 + 4 * i)] for i in range(10)] + [[4000, "94"]]
     trend = rf._usage_trend({"values": values}, now)
     assert trend["predicted_exhaustion"] == now.isoformat()
     assert "already exhausted" in trend["exhaustion_note"]
@@ -513,3 +552,13 @@ async def test_overflowing_forecast_horizon_is_an_error(server, monkeypatch):
     monkeypatch.setattr(server, "prometheus_query", fake_prom)
     result = await server.resource_bottleneck_forecaster(forecast_horizon="9999999999d")
     assert "Invalid forecast_horizon" in result["error"]
+
+
+def test_spike_below_the_threshold_creates_no_trend():
+    """Least squares would turn one 85 % sample on a flat 60 % series into a
+    rising trend and a forecast; the robust slope does not."""
+    now = datetime.now(timezone.utc)
+    values = [[1000 + 300 * i, "60"] for i in range(49)] + [[1000 + 300 * 49, "85"]]
+    trend = rf._usage_trend({"values": values}, now)
+    assert trend["predicted_exhaustion"] is None
+    assert "not growing" in trend["exhaustion_note"]
