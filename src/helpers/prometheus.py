@@ -1053,13 +1053,14 @@ def _format_as_json(results: List[Dict], result_type: str) -> List[Dict]:
                         "p95": round(sorted_vals[int(len(sorted_vals) * 0.95)], 4) if len(sorted_vals) > 1 else round(sorted_vals[0], 4),
                     }
 
-                # Downsample values to max 50 points for trend visualization
+                # Downsample values to max 50 points for trend visualization,
+                # evenly spaced and always keeping the first and newest sample
                 MAX_DATAPOINTS = 50
                 sampled_values = []
                 if total_count > MAX_DATAPOINTS:
-                    step = total_count / MAX_DATAPOINTS
+                    step = (total_count - 1) / (MAX_DATAPOINTS - 1)
                     for i in range(MAX_DATAPOINTS):
-                        idx = int(i * step)
+                        idx = round(i * step)
                         sampled_values.append(values[idx])
                 else:
                     sampled_values = values
@@ -1088,6 +1089,11 @@ def _format_as_json(results: List[Dict], result_type: str) -> List[Dict]:
     except Exception as e:
         logger.error(f"Error formatting JSON: {e}")
         return [{"error": f"Error formatting results: {e}"}]
+
+
+def _promql_label_value(value: str) -> str:
+    """Escape a string for use inside a double-quoted PromQL label matcher."""
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
 
 def _format_metric_value(metric_name: str, value: Optional[str]) -> str:
