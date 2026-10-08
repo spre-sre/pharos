@@ -17,7 +17,7 @@ from starlette.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from core.http_transport import LoopbackHostASGIMiddleware  # noqa: E402
+from core.http_transport import LoopbackHostASGIMiddleware, _host_is_loopback  # noqa: E402
 
 
 def _client():
@@ -40,7 +40,7 @@ def test_loopback_hosts_pass(host):
 @pytest.mark.parametrize("host", [
     "attacker.example", "attacker.example:4318", "127.0.0.1.attacker.example",
     "localhost.attacker.example:4318", "10.0.0.5:4318", "[::2]:4318", "",
-    "127.0.0.1:4318@attacker.example",
+    "127.0.0.1:4318@attacker.example", "localhost.", "127.1",
 ])
 def test_foreign_hosts_are_rejected(host):
     resp = _client().post("/v1/logs", headers={"Host": host})
@@ -76,3 +76,9 @@ def test_lifespan_passes_through():
 
     asyncio.run(LoopbackHostASGIMiddleware(app)({"type": "lifespan"}, None, None))
     assert seen == ["lifespan"]
+
+
+def test_non_ascii_port_digits_are_rejected():
+    assert not _host_is_loopback("localhost:\u00b2")       # superscript two
+    assert not _host_is_loopback("127.0.0.1:\u0663")       # Arabic-Indic three
+    assert _host_is_loopback("127.0.0.1:4318")

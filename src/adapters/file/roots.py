@@ -21,6 +21,10 @@ class PathOutsideRoots(_AdapterError):
 
 # Most matching files one pattern returns (per call, over all roots).
 MAX_MATCHES = 1000
+# Most glob results (files, directories, entries behind symlinks that resolve
+# outside the root) one pattern may scan; stops "link/**/*.x" with a symlink
+# to / and huge trees that match nothing.
+MAX_SCANNED = 50_000
 
 
 def _is_glob(pattern: str) -> bool:
@@ -37,8 +41,10 @@ def resolve_matches_bounded(pattern: str,
                             roots: Tuple[Path, ...]) -> Tuple[List[Tuple[Path, str]], bool]:
     """Return ((abs_path, relpath) pairs for *pattern* inside *roots*, capped).
 
-    ``capped`` is True when more than MAX_MATCHES files matched; only the
-    first MAX_MATCHES found are returned (sorted by relpath).
+    ``capped`` is True when more than MAX_MATCHES files matched or the glob
+    scanned more than MAX_SCANNED entries; then only the files found so far
+    (at most MAX_MATCHES, in filesystem order) are returned, sorted by
+    relpath.
 
     Security properties:
     - Empty pattern raises :exc:`PathOutsideRoots` (degenerate — glob would
@@ -77,13 +83,19 @@ def resolve_matches_bounded(pattern: str,
     out: List[Tuple[Path, str]] = []
     escaped_exact = False
     capped = False
+    scanned = 0
+    scan_budget_hit = False
 
     for root in roots:
         root = root.resolve()  # macOS /var/folders → /private/var safety
 
         def _inside_files():
-            nonlocal escaped_exact
+            nonlocal escaped_exact, scanned, scan_budget_hit
             for m in root.glob(pattern):
+                scanned += 1
+                if scanned > MAX_SCANNED:
+                    scan_budget_hit = True
+                    return
                 real = m.resolve()
                 inside = real == root or root in real.parents
                 if not inside:
@@ -96,7 +108,7 @@ def resolve_matches_bounded(pattern: str,
         # Lazily, so a huge tree stops at the cap instead of being listed whole
         room = MAX_MATCHES - len(out)
         found = list(islice(_inside_files(), room + 1))
-        if len(found) > room:
+        if len(found) > room or scan_budget_hit:
             capped = True
             found = found[:room]
         out.extend(sorted(found, key=lambda t: t[1]))

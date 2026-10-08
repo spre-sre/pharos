@@ -12,12 +12,16 @@ missing root raises immediately.  Matches are resolved and prefix-checked via
 from __future__ import annotations
 
 import asyncio
+import contextvars
+import functools
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-from adapters.file.roots import MAX_MATCHES, resolve_matches_bounded
+import adapters.file.roots as _roots
+from adapters.file.roots import resolve_matches_bounded
 from adapters.file.sniff import detect_format, parse_line
 from core.selector import (
     Entity,
@@ -32,8 +36,13 @@ from core.signals import LogBatch, LogRecord, Provenance
 # Number of non-blank lines fed to detect_format (mirrors sniff._SAMPLE_LINES).
 _SAMPLE_LINES: int = 20
 # Longest piece of a line read at once; a longer line becomes several records,
-# so a file with no newlines cannot be loaded into memory whole.
+# so a file with no newlines cannot be loaded into memory whole. The pieces
+# after the first carry no timestamp (kept as undated under a time window)
+# and a split JSON line does not parse as JSON.
 MAX_LINE_CHARS: int = 1 << 20
+# File globs and reads run here, not on the event loop or the shared default
+# executor that other to_thread users rely on.
+_FILE_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="file-source")
 
 
 def _iter_lines(path: Path) -> Iterator[str]:
@@ -128,7 +137,10 @@ class FileLogSource:
                 requested=type(selector).__name__, supported=("Entity",)
             )
 
-        return await asyncio.to_thread(self._fetch_sync, selector, window, limit)
+        loop = asyncio.get_running_loop()
+        call = functools.partial(
+            contextvars.copy_context().run, self._fetch_sync, selector, window, limit)
+        return await loop.run_in_executor(_FILE_EXECUTOR, call)
 
     def _fetch_sync(
         self,
@@ -149,7 +161,10 @@ class FileLogSource:
         records: List[LogRecord] = []
         notes: List[str] = []
         if capped:
-            notes.append(f"only the first {MAX_MATCHES} matching files were read")
+            notes.append(
+                f"not all matching files were read: at most {_roots.MAX_MATCHES} files and "
+                f"{_roots.MAX_SCANNED} scanned entries per pattern; "
+                f"{len(matches)} files read, chosen in filesystem order")
         total_bytes: int = 0
         truncated: bool = False
         undated_note_added: bool = False
@@ -239,6 +254,8 @@ class FileLogSource:
             remaining = _has_more_content(matches, records, max_rec)
             if not remaining:
                 truncated = False
+        if capped:
+            truncated = True  # files beyond the cap were not read
 
         return LogBatch(
             records=records,

@@ -99,7 +99,8 @@ def test_match_count_is_capped_with_a_note(tmp_path, monkeypatch):
 
     batch = asyncio.run(FileLogSource((str(root),)).fetch_logs(Entity("*.log"), TimeWindow(), Limit()))
     assert len({r.attributes["file"] for r in batch.records}) == 3
-    assert any("matching files" in note for note in batch.provenance.notes)
+    assert any("not all matching files were read" in note for note in batch.provenance.notes)
+    assert batch.provenance.truncated is True
 
 
 def test_walk_stops_at_the_cap(tmp_path, monkeypatch):
@@ -176,3 +177,30 @@ def test_very_long_line_is_read_in_bounded_pieces(tmp_path, monkeypatch):
     (root / "x.log").write_text("a" * 2500 + "\nb\n")
     pieces = list(file_logs._iter_lines(root / "x.log"))
     assert pieces == ["a" * 1000, "a" * 1000, "a" * 500, "b"]
+
+
+@pytest.mark.parametrize("pattern", ["link/**/*.zzz", "*/*/*.zzz"])
+def test_symlink_to_a_big_outside_tree_is_bounded_by_the_scan_budget(tmp_path, monkeypatch, pattern):
+    """A symlinked directory inside the root (link -> /) is followed by a
+    literal or '*' component; the scan budget stops the walk."""
+    outside = tmp_path / "outside"
+    for i in range(30):
+        (outside / f"d{i:02d}").mkdir(parents=True)
+        for j in range(10):
+            (outside / f"d{i:02d}" / f"f{j}.zzz").write_text("x\n")
+    root = _root(tmp_path)
+    (root / "link").symlink_to(outside, target_is_directory=True)
+    monkeypatch.setattr(file_roots, "MAX_SCANNED", 50)
+    consumed = 0
+    real_glob = Path.glob
+
+    def counting_glob(self, pat):
+        nonlocal consumed
+        for path in real_glob(self, pat):
+            consumed += 1
+            yield path
+
+    monkeypatch.setattr(Path, "glob", counting_glob)
+    matches, capped = file_roots.resolve_matches_bounded(pattern, (root,))
+    assert matches == [] and capped
+    assert consumed <= 51, consumed

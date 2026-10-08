@@ -1,6 +1,8 @@
 """Structural read-only guarantee (spec SS4.7): write verbs do not exist here."""
 from __future__ import annotations
 
+import weakref
+
 
 class WriteOperationError(RuntimeError):
     """A mutating or exec-capable API method was requested through the read-only client."""
@@ -8,6 +10,10 @@ class WriteOperationError(RuntimeError):
 
 _READ_PREFIXES = ("read_", "list_", "watch_", "get_")
 _BLOCKED_PREFIXES = ("create_", "patch_", "delete_", "replace_", "connect_")
+
+
+# proxy -> raw client; weak keys, so a dropped proxy does not keep its entry.
+_RAW_CLIENTS: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
 
 
 class ReadOnlyK8sClient:
@@ -18,13 +24,26 @@ class ReadOnlyK8sClient:
     - connect_* blocked entirely (connect_get_namespaced_pod_exec is exec).
     - Non-verb attributes (api_client, ...) are DENIED by design: callers
       needing them must hold the raw client deliberately.
-    - The wrapped client is sealed: ``proxy._api``, any other underscore
-      name and ``__dict__`` raise AttributeError, so the raw (writable)
-      client is reachable only through :func:`unwrap_readonly`.
+    - The wrapped client is not stored on the proxy: it lives in a
+      module-level weak registry read by :func:`unwrap_readonly`, so
+      ``proxy._api``, ``__dict__``, pickling state and the like do not
+      reach it. Underscore names raise AttributeError; pickling raises
+      TypeError; copy/deepcopy return the same proxy (it is immutable).
     """
 
+    __slots__ = ("__weakref__",)
+
     def __init__(self, api):
-        object.__setattr__(self, "_api", api)
+        _RAW_CLIENTS[self] = api
+
+    def __reduce__(self):  # object.__reduce_ex__ defers to it
+        raise TypeError("ReadOnlyK8sClient cannot be pickled")
+
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, memo):
+        return self
 
     def __getattribute__(self, name: str):
         # Dunder protocol (__class__, __repr__, ...) stays; private names and
@@ -45,7 +64,7 @@ class ReadOnlyK8sClient:
                 f"'{name}' is not available through ReadOnlyCoreV1 "
                 f"(read-only client; spec SS4.7)")
         if name.startswith(_READ_PREFIXES):
-            return getattr(object.__getattribute__(self, "_api"), name)
+            return getattr(_RAW_CLIENTS[self], name)
         raise AttributeError(
             f"ReadOnlyCoreV1 exposes only read verbs; {name!r} denied by design")
 
@@ -58,7 +77,7 @@ def unwrap_readonly(obj):
     never call write verbs on the result.
     """
     if isinstance(obj, ReadOnlyK8sClient):
-        return object.__getattribute__(obj, "_api")
+        return _RAW_CLIENTS[obj]
     return obj
 
 

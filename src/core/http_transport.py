@@ -137,7 +137,8 @@ def _host_is_loopback(host_header: Optional[str]) -> bool:
         rest = sep + port
         if host not in ("127.0.0.1", "localhost"):
             return False
-    return rest == "" or (rest.startswith(":") and rest[1:].isdigit())
+    port = rest[1:]
+    return rest == "" or (rest.startswith(":") and port.isascii() and port.isdigit())
 
 
 class LoopbackHostASGIMiddleware:

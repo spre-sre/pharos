@@ -4,6 +4,9 @@ proxy._api returned the wrapped kubernetes API object, and from it every write
 verb (proxy._api.delete_namespace(...)). __getattr__ only runs for missing
 attributes, so the read-only guarantee held by convention only.
 """
+import copy
+import gc
+import pickle
 import sys
 from pathlib import Path
 
@@ -68,3 +71,27 @@ def test_dunder_protocol_still_works():
     assert isinstance(proxy, ReadOnlyK8sClient)
     assert type(proxy).__name__ == "ReadOnlyK8sClient"
     assert "ReadOnlyK8sClient" in repr(proxy)
+
+
+def test_pickling_is_refused_and_does_not_carry_the_raw_client():
+    proxy = ReadOnlyK8sClient(_FakeApi())
+    with pytest.raises(TypeError):
+        pickle.dumps(proxy)
+    with pytest.raises(TypeError):
+        proxy.__reduce_ex__(4)
+    with pytest.raises(TypeError):
+        proxy.__reduce__()
+
+
+def test_copy_returns_the_same_proxy():
+    proxy = ReadOnlyK8sClient(_FakeApi())
+    assert copy.copy(proxy) is proxy
+    assert copy.deepcopy(proxy) is proxy
+
+
+def test_no_reference_from_the_proxy_reaches_the_raw_client():
+    raw = _FakeApi()
+    proxy = ReadOnlyK8sClient(raw)
+    assert raw not in gc.get_referents(proxy)
+    state = proxy.__getstate__() if hasattr(type(proxy), "__getstate__") else None
+    assert state is None or raw not in (state.values() if isinstance(state, dict) else [state])
