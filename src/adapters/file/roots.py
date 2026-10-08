@@ -61,7 +61,7 @@ def resolve_matches_bounded(pattern: str,
       when it resolves inside the root (a directory is entered once per
       pattern state, so loops end and a link such as latest -> runs/r1 does
       not hide runs/r1), and silently skips files that resolve outside the
-      root.
+      root. A file reached through several in-root paths is returned once.
     - Each root is resolved first (macOS ``/var/folders -> /private/var``).
     """
     if not pattern:
@@ -105,6 +105,7 @@ class _Walker:
     def __init__(self, segments: Tuple[str, ...]):
         self.segments = segments
         self.found: List[Tuple[Path, str]] = []
+        self.seen_files: Set[Path] = set()
         self.capped = False
         self.scanned = 0
 
@@ -158,8 +159,10 @@ class _Walker:
                 except OSError:
                     continue
                 if is_dir:
-                    sub_states = self._step(states, entry.name, True)
-                    if not any(i < end for i in sub_states):
+                    # 'end' only means the directory itself matched; it never
+                    # matches anything below, so it is not part of the key
+                    sub_states = self._step(states, entry.name, True) - {end}
+                    if not sub_states:
                         continue  # nothing below can match
                     real = Path(entry.path).resolve() if is_link else Path(entry.path)
                     if (real, sub_states) in visited or not (real == root or root in real.parents):
@@ -170,8 +173,11 @@ class _Walker:
                     real = Path(entry.path).resolve() if is_link else Path(entry.path)
                     if not (root in real.parents):
                         continue  # symlink out of the root: silently skipped
+                    if real in self.seen_files:
+                        continue  # same file through an in-root symlink alias
                     if len(self.found) >= MAX_MATCHES:
                         self.capped = True
                         return
+                    self.seen_files.add(real)
                     self.found.append((real, str(real.relative_to(root))))
             stack.extend(reversed(subdirs))

@@ -328,3 +328,27 @@ def test_trailing_slash_names_directories_only(tmp_path, pattern):
     root = _root(tmp_path, files=("sub/inner/x.log", "sub/a.log"))
     expected = sorted(str(p.relative_to(root)) for p in root.glob(pattern) if p.is_file())
     assert [rel for _, rel in resolve_matches(pattern, (root,))] == expected == []
+
+
+@pytest.mark.parametrize("files,link,target,pattern,expected", [
+    (("runs/r1/app.log",), "latest", "runs/r1", "**/*/*", ["runs/r1/app.log"]),
+    (("x.log",), "a", ".", "**/*", ["x.log"]),
+])
+def test_file_reached_through_an_alias_is_returned_once(tmp_path, files, link, target, pattern, expected):
+    root = _root(tmp_path, files=files)
+    (root / link).symlink_to(root / target, target_is_directory=True)
+    assert [rel for _, rel in resolve_matches(pattern, (root,))] == expected
+
+
+def test_overlapping_roots_read_a_file_once(tmp_path):
+    root = _root(tmp_path, files=("sub/a.log",))
+    matches = resolve_matches("**/*.log", (root, root / "sub"))
+    assert [rel for _, rel in matches] == ["sub/a.log"]
+
+
+def test_link_to_the_root_does_not_rescan_it(tmp_path, monkeypatch):
+    root = _root(tmp_path, files=("x.log",))
+    (root / "a").symlink_to(root, target_is_directory=True)
+    calls = _count_scandir(monkeypatch)
+    assert [rel for _, rel in resolve_matches("**/*", (root,))] == ["x.log"]
+    assert calls["n"] == 1, calls
