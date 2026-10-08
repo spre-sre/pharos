@@ -5,8 +5,11 @@ resolved roots.  The returned relpath (relative to its root) is the ONLY path
 form that may reach LogRecord attributes, envelopes, or goldens."""
 from __future__ import annotations
 
+import os
+from fnmatch import fnmatchcase
+from itertools import islice
 from pathlib import Path
-from typing import List, Tuple
+from typing import FrozenSet, List, Set, Tuple
 
 try:
     from core.errors import AdapterError as _AdapterError
@@ -18,72 +21,163 @@ class PathOutsideRoots(_AdapterError):
     """The requested path resolves outside every configured allowlist root."""
 
 
+# Most matching files one pattern returns (per call, over all roots).
+MAX_MATCHES = 1000
+# Most directory entries one pattern may read while walking (every entry of
+# every directory listed counts, matching or not), so a huge tree that matches
+# nothing cannot be walked whole.
+MAX_SCANNED = 50_000
+
+
 def _is_glob(pattern: str) -> bool:
     return any(ch in pattern for ch in "*?[")
 
 
 def resolve_matches(pattern: str, roots: Tuple[Path, ...]) -> List[Tuple[Path, str]]:
-    """Return (abs_path, relpath) pairs for *pattern* inside *roots*.
+    """Return (abs_path, relpath) pairs for *pattern* inside *roots*
+    (at most MAX_MATCHES; see :func:`resolve_matches_bounded`)."""
+    return resolve_matches_bounded(pattern, roots)[0]
+
+
+def resolve_matches_bounded(pattern: str,
+                            roots: Tuple[Path, ...]) -> Tuple[List[Tuple[Path, str]], bool]:
+    """Return ((abs_path, relpath) pairs for *pattern* inside *roots*, capped).
+
+    ``capped`` is True when more than MAX_MATCHES files matched or the walk
+    read more than MAX_SCANNED directory entries; then only the files found
+    so far (at most MAX_MATCHES) are returned. Pairs are sorted by relpath;
+    directories are never included.
 
     Security properties:
-    - Empty pattern raises :exc:`PathOutsideRoots` (degenerate — glob would
-      crash with IndexError on Python 3.12).
-    - Pattern ``"."`` returns an empty list (names the root directory itself,
-      never a file; avoiding a potential IndexError on some Python versions).
-    - Absolute patterns always raise :exc:`PathOutsideRoots`.
-    - Symlinks and ``..`` components are resolved before the root prefix-check
-      so that escape attempts via either mechanism are caught.
-    - Glob patterns silently skip matches that resolve outside their root.
-    - Non-glob (exact-path) patterns raise :exc:`PathOutsideRoots` if the
-      resolved target escapes (the §4.7 negative-test behaviour).
-    - A direct probe is performed for non-glob patterns even when
-      ``root.glob()`` returns nothing, preserving correct behaviour on Python
-      3.10/3.11 where ``glob("../x")`` may not yield matches.
-    - ``root.resolve()`` is called at the top of every root iteration so that
-      macOS ``/var/folders → /private/var`` symlinks in ``tmp_path`` do not
-      make every resolved match look like an escape.
-
-    Returns pairs sorted by relpath; directories are never included.
+    - Empty pattern raises :exc:`PathOutsideRoots`; ``"."`` returns nothing.
+    - Absolute patterns and patterns with a ``..`` component raise
+      :exc:`PathOutsideRoots` before any filesystem access.
+    - Exact (non-glob) patterns are a direct path check: the target is
+      resolved, then prefix-checked; one that escapes raises.
+    - Glob patterns are matched by our own walker (not ``Path.glob``): it
+      descends only into directories that can still match the pattern,
+      counts every entry it reads against MAX_SCANNED (a directory is read
+      only up to the remaining budget), follows a symlinked directory only
+      when it resolves inside the root (a directory is entered once per
+      pattern state, so loops end and a link such as latest -> runs/r1 does
+      not hide runs/r1), and silently skips files that resolve outside the
+      root. A file reached through several in-root paths is returned once.
+    - Each root is resolved first (macOS ``/var/folders -> /private/var``).
     """
-    # Guard degenerate patterns before reaching glob (which would crash).
     if not pattern:
         raise PathOutsideRoots("empty pattern is not allowed")
-    if pattern == ".":
-        return []
-
+    if pattern == "." or pattern.endswith("/"):
+        return [], False  # names directories only; directories are never returned
     if Path(pattern).is_absolute():
         raise PathOutsideRoots(f"absolute paths are not allowed: {pattern!r}")
+    parts = Path(pattern).parts
+    if ".." in parts:
+        raise PathOutsideRoots(f"'..' is not allowed in patterns: {pattern!r}")
 
-    out: List[Tuple[Path, str]] = []
-    escaped_exact = False
+    resolved_roots = [root.resolve() for root in roots]
 
-    for root in roots:
-        root = root.resolve()  # macOS /var/folders → /private/var safety
+    if not _is_glob(pattern):
+        out: List[Tuple[Path, str]] = []
+        escaped = False
+        for root in resolved_roots:
+            real = (root / pattern).resolve()
+            if real == root or root in real.parents:
+                if real.is_file():
+                    out.append((real, str(real.relative_to(root))))
+            elif real.exists():
+                escaped = True
+        if not out and escaped:
+            raise PathOutsideRoots(f"{pattern!r} resolves outside the configured roots")
+        return sorted(out, key=lambda t: t[1]), False
 
-        for m in sorted(root.glob(pattern)):
-            real = m.resolve()
-            inside = real == root or root in real.parents
-            if not inside:
-                # Non-glob pattern that escapes: remember for post-loop raise.
-                escaped_exact = escaped_exact or not _is_glob(pattern)
+    walker = _Walker(tuple(parts))
+    for root in resolved_roots:
+        walker.walk_root(root)
+        if walker.capped:
+            break
+    return sorted(walker.found, key=lambda t: t[1]), walker.capped
+
+
+class _Walker:
+    """Bounded glob over directory trees with pathlib-like segment matching
+    (``**`` = zero or more directories, other segments via fnmatchcase)."""
+
+    def __init__(self, segments: Tuple[str, ...]):
+        self.segments = segments
+        self.found: List[Tuple[Path, str]] = []
+        self.seen_files: Set[Path] = set()
+        self.capped = False
+        self.scanned = 0
+
+    def _closure(self, states: Set[int]) -> FrozenSet[int]:
+        out = set(states)
+        stack = list(states)
+        while stack:
+            i = stack.pop()
+            if i < len(self.segments) and self.segments[i] == "**" and i + 1 not in out:
+                out.add(i + 1)
+                stack.append(i + 1)
+        return frozenset(out)
+
+    def _step(self, states: FrozenSet[int], name: str, is_dir: bool) -> FrozenSet[int]:
+        nxt: Set[int] = set()
+        for i in states:
+            if i >= len(self.segments):
                 continue
-            if real.is_file():
-                out.append((real, str(real.relative_to(root))))
+            seg = self.segments[i]
+            if seg == "**":
+                if is_dir:
+                    nxt.add(i)  # '**' consumes this directory level
+            elif fnmatchcase(name, seg):
+                nxt.add(i + 1)
+        return self._closure(nxt)
 
-        # Direct probe for py3.10/3.11 portability: those versions may not
-        # yield results for ``root.glob("../x")``.  We replicate the same
-        # resolve-then-prefix-check on the explicit candidate path so that an
-        # exact non-glob pattern that escapes is caught even when glob returns
-        # nothing.  This path is exercised by the dedicated monkeypatch test.
-        if not _is_glob(pattern) and not escaped_exact:
-            candidate = root / pattern
-            real = candidate.resolve()
-            inside = real == root or root in real.parents
-            if not inside and real.exists():
-                escaped_exact = True
-
-    if not out and not _is_glob(pattern) and escaped_exact:
-        raise PathOutsideRoots(
-            f"{pattern!r} resolves outside the configured roots")
-
-    return sorted(out, key=lambda t: t[1])
+    def walk_root(self, root: Path) -> None:
+        start = self._closure({0})
+        visited: Set[Tuple[Path, FrozenSet[int]]] = {(root, start)}
+        stack = [(root, start)]
+        end = len(self.segments)
+        while stack and not self.capped:
+            directory, states = stack.pop()
+            try:
+                with os.scandir(directory) as it:
+                    # never read more of one directory than the budget allows
+                    entries = sorted(islice(it, MAX_SCANNED - self.scanned + 1),
+                                     key=lambda e: e.name)
+            except OSError:
+                continue  # unreadable or vanished: skipped, as glob does
+            subdirs = []
+            for entry in entries:
+                self.scanned += 1
+                if self.scanned > MAX_SCANNED:
+                    self.capped = True
+                    return
+                try:
+                    is_dir = entry.is_dir(follow_symlinks=True)
+                    is_file = not is_dir and entry.is_file(follow_symlinks=True)
+                    is_link = entry.is_symlink()
+                except OSError:
+                    continue
+                if is_dir:
+                    # 'end' only means the directory itself matched; it never
+                    # matches anything below, so it is not part of the key
+                    sub_states = self._step(states, entry.name, True) - {end}
+                    if not sub_states:
+                        continue  # nothing below can match
+                    real = Path(entry.path).resolve() if is_link else Path(entry.path)
+                    if (real, sub_states) in visited or not (real == root or root in real.parents):
+                        continue  # loop, or a symlink out of the root
+                    visited.add((real, sub_states))
+                    subdirs.append((real, sub_states))
+                elif is_file and end in self._step(states, entry.name, False):
+                    real = Path(entry.path).resolve() if is_link else Path(entry.path)
+                    if not (root in real.parents):
+                        continue  # symlink out of the root: silently skipped
+                    if real in self.seen_files:
+                        continue  # same file through an in-root symlink alias
+                    if len(self.found) >= MAX_MATCHES:
+                        self.capped = True
+                        return
+                    self.seen_files.add(real)
+                    self.found.append((real, str(real.relative_to(root))))
+            stack.extend(reversed(subdirs))

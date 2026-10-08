@@ -1230,3 +1230,71 @@ def test_otlp_push_to_fetch_ring_identity(tmp_path):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+
+
+@pytest.mark.slow
+def test_otlp_serve_open_rejects_foreign_host(tmp_path):
+    """H22: the open (no token, loopback) OTLP receiver started by main.py
+    rejects a foreign Host header (DNS rebinding) and accepts a loopback one."""
+    import http.client
+    import importlib.util as _ilu
+
+    cfg_path = _write_otlp_config(tmp_path)
+    otlp_port = _free_port()
+    kube_cfg = tmp_path / "kube-config-host"
+    kube_cfg.write_text(_FAKE_KUBECONFIG)
+    _env_keys = [
+        "LUMINO_CONFIG", "LUMINO_OTLP_BIND_HOST", "LUMINO_OTLP_BIND_PORT",
+        "LUMINO_OTLP_TOKEN", "KUBECONFIG", "KUBEARCHIVE_ENABLED",
+        "LUMINO_DISABLE_TELEMETRY",
+    ]
+    _saved = {k: os.environ.get(k) for k in _env_keys}
+    os.environ["LUMINO_CONFIG"] = str(cfg_path)
+    os.environ["KUBECONFIG"] = str(kube_cfg)
+    os.environ["KUBEARCHIVE_ENABLED"] = "false"
+    os.environ["LUMINO_DISABLE_TELEMETRY"] = "1"
+    os.environ["LUMINO_OTLP_BIND_HOST"] = "127.0.0.1"
+    os.environ["LUMINO_OTLP_BIND_PORT"] = str(otlp_port)
+    os.environ.pop("LUMINO_OTLP_TOKEN", None)
+    _srv_key = f"server_mcp_host_check_{otlp_port}"
+    _main_key = f"lumino_main_host_check_{otlp_port}"
+    otlp_server = None
+
+    def post(host):
+        conn = http.client.HTTPConnection("127.0.0.1", otlp_port, timeout=5)
+        try:
+            conn.putrequest("POST", "/v1/logs", skip_host=True)
+            conn.putheader("Host", host)
+            conn.putheader("Content-Type", "application/json")
+            conn.putheader("Content-Length", str(len(_OTLP_MINIMAL_BODY)))
+            conn.endheaders(_OTLP_MINIMAL_BODY)
+            return conn.getresponse().status
+        finally:
+            conn.close()
+
+    try:
+        srv_spec = _ilu.spec_from_file_location(_srv_key, SRC / "server-mcp.py")
+        mod = _ilu.module_from_spec(srv_spec)
+        sys.modules[_srv_key] = mod
+        srv_spec.loader.exec_module(mod)
+        main_spec = _ilu.spec_from_file_location(_main_key, REPO_ROOT / "main.py")
+        main_mod = _ilu.module_from_spec(main_spec)
+        main_spec.loader.exec_module(main_mod)
+
+        otlp_server = main_mod._start_otlp_receiver(mod)
+        assert otlp_server is not None and otlp_server.started
+
+        assert post("attacker.example") == 403
+        assert post(f"attacker.example:{otlp_port}") == 403
+        assert post(f"127.0.0.1:{otlp_port}") == 200
+        assert post(f"localhost:{otlp_port}") == 200
+    finally:
+        if otlp_server is not None:
+            otlp_server.should_exit = True
+        sys.modules.pop(_srv_key, None)
+        sys.modules.pop(_main_key, None)
+        for k, v in _saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
