@@ -10,7 +10,9 @@ worker thread is still running.
 
 There is one pool per cluster (keyed by the API server host of the client the
 call goes to), so a slow or stuck cluster fills only its own pool and never
-delays calls to another cluster.
+delays calls to another cluster. Pools live for the process lifetime: at most
+MAX_CONCURRENT_CALLS threads per API server host ever used (bounded by the
+configured and connected clusters).
 
     pods = await k8s_call(core_api.list_namespaced_pod, namespace="team-a")
     ok = await k8s_offload(sync_helper_that_sets_its_own_timeouts, core_api, arg)
@@ -27,6 +29,11 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, Optional, TypeVar
 
+try:
+    from core.readonly_client import ReadOnlyK8sClient
+except ImportError:  # imported as src.core.k8s_async (repo root on sys.path)
+    from src.core.readonly_client import ReadOnlyK8sClient
+
 T = TypeVar("T")
 
 # Seconds for one Kubernetes API request (urllib3 total timeout).
@@ -42,10 +49,6 @@ _DEFAULT_KEY = "default"
 # Attributes that hold a Kubernetes API object on helper classes
 # (KubeArchive discovery/client, registries) passed to k8s_offload.
 _API_ATTRS = ("api_client", "k8s_core_api", "core_api", "k8s_custom_api", "custom_api")
-# Read methods present on the API classes we use; a ReadOnlyK8sClient wrapper
-# returns them bound to the real API object, which carries the host.
-_PROBE_METHODS = ("list_namespace", "list_cluster_custom_object", "list_namespaced_deployment",
-                  "list_namespaced_job", "get_api_versions", "get_code")
 
 _pools: Dict[str, ThreadPoolExecutor] = {}
 _pools_lock = threading.Lock()
@@ -56,25 +59,29 @@ def _api_host(obj: Any) -> Optional[str]:
         host = obj.api_client.configuration.host
     except Exception:
         return None
-    return host if isinstance(host, str) and host else None
+    if not isinstance(host, str) or not host:
+        return None
+    return host.rstrip("/").lower()
+
+
+def _unwrap(obj: Any) -> Any:
+    """The real API object behind a ReadOnlyK8sClient, read directly (no
+    attribute access through the wrapper, so read-only spies see no extra
+    lookups)."""
+    if isinstance(obj, ReadOnlyK8sClient):
+        return object.__getattribute__(obj, "_api")
+    return obj
 
 
 def _host_of(obj: Any, _depth: int = 0) -> Optional[str]:
-    """API server host behind an API object, a bound API method, a
-    ReadOnlyK8sClient wrapper, or a helper object holding one; else None."""
+    """Normalized API server host behind an API object, a bound API method,
+    a ReadOnlyK8sClient wrapper, or a helper object holding one; else None."""
     if obj is None or _depth > 2:
         return None
+    obj = _unwrap(obj)
     host = _api_host(obj) or _api_host(getattr(obj, "__self__", None))
     if host:
         return host
-    for name in _PROBE_METHODS:
-        try:
-            method = getattr(obj, name)
-        except Exception:
-            continue
-        host = _api_host(getattr(method, "__self__", None))
-        if host:
-            return host
     for name in _API_ATTRS:
         try:
             inner = getattr(obj, name)
@@ -95,7 +102,7 @@ def _pool(key: Optional[str]) -> ThreadPoolExecutor:
             pool = _pools.get(key)
             if pool is None:
                 pool = _pools[key] = ThreadPoolExecutor(
-                    max_workers=MAX_CONCURRENT_CALLS, thread_name_prefix=f"k8s-call[{key}]")
+                    max_workers=MAX_CONCURRENT_CALLS, thread_name_prefix=f"k8s-call-{len(_pools)}")
     return pool
 
 

@@ -372,3 +372,50 @@ def test_pool_key_is_found_through_wrappers_and_helpers():
     holder = type("Discovery", (), {"k8s_core_api": wrapped})()
     assert k8s_async._host_of(holder) == cfg.host
     assert k8s_async._host_of(object()) is None
+
+
+def test_host_lookup_through_wrapper_makes_no_attribute_access():
+    """Read-only spies must not record lookups the tool never made."""
+    from core.readonly_client import ReadOnlyK8sClient
+
+    seen = []
+
+    class Recording:
+        api_client = _FakeApiClient("https://api.rec.example:6443")
+
+        def __getattr__(self, name):
+            seen.append(name)
+            raise AttributeError(name)
+
+    assert k8s_async._host_of(ReadOnlyK8sClient.wrap(Recording())) == "https://api.rec.example:6443"
+    assert seen == []
+
+
+def test_host_key_is_normalized():
+    a = type("A", (), {"api_client": _FakeApiClient("https://API.c1.example:6443/")})()
+    b = type("B", (), {"api_client": _FakeApiClient("https://api.c1.example:6443")})()
+    assert k8s_async._host_of(a) == k8s_async._host_of(b)
+
+
+def test_offload_routes_by_wrapped_first_argument():
+    """k8s_offload(helper, wrapped_api, ...) runs on that cluster's pool."""
+    from core.readonly_client import ReadOnlyK8sClient
+
+    release = threading.Event()
+    stuck = _HostApi("https://api.stuck2.example:6443", release)
+    healthy = ReadOnlyK8sClient.wrap(_HostApi("https://api.healthy2.example:6443", release))
+
+    def helper(api, ns):
+        return ns
+
+    async def main():
+        blocked = [asyncio.ensure_future(k8s_call(stuck.list_stuck)) for _ in range(20)]
+        await asyncio.sleep(0.05)
+        started = time.monotonic()
+        assert await k8s_async.k8s_offload(helper, healthy, "team-a") == "team-a"
+        waited = time.monotonic() - started
+        release.set()
+        await asyncio.gather(*blocked)
+        return waited
+
+    assert asyncio.run(main()) < 0.5
