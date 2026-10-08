@@ -95,3 +95,17 @@ def test_no_reference_from_the_proxy_reaches_the_raw_client():
     assert raw not in gc.get_referents(proxy)
     state = proxy.__getstate__() if hasattr(type(proxy), "__getstate__") else None
     assert state is None or raw not in (state.values() if isinstance(state, dict) else [state])
+
+
+def test_uninitialised_proxy_raises_attribute_error_not_key_error():
+    proxy = object.__new__(ReadOnlyK8sClient)
+    assert not hasattr(proxy, "list_namespace")
+    with pytest.raises(AttributeError):
+        unwrap_readonly(proxy)
+
+
+def test_subclass_cannot_override_equality():
+    with pytest.raises(TypeError):
+        class _Bad(ReadOnlyK8sClient):
+            def __eq__(self, other):
+                return True

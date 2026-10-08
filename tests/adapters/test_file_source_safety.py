@@ -99,27 +99,30 @@ def test_match_count_is_capped_with_a_note(tmp_path, monkeypatch):
 
     batch = asyncio.run(FileLogSource((str(root),)).fetch_logs(Entity("*.log"), TimeWindow(), Limit()))
     assert len({r.attributes["file"] for r in batch.records}) == 3
-    assert any("not all matching files were read" in note for note in batch.provenance.notes)
+    assert any("search stopped at a limit" in note for note in batch.provenance.notes)
     assert batch.provenance.truncated is True
 
 
+def _count_scandir(monkeypatch):
+    """Count directory listings the walker makes."""
+    calls = {"n": 0}
+    real_scandir = file_roots.os.scandir
+
+    def counting(path):
+        calls["n"] += 1
+        return real_scandir(path)
+
+    monkeypatch.setattr(file_roots.os, "scandir", counting)
+    return calls
+
+
 def test_walk_stops_at_the_cap(tmp_path, monkeypatch):
-    """The glob is consumed lazily: a huge tree is not listed whole."""
-    root = _root(tmp_path, files=[f"f{i:02d}.log" for i in range(40)])
+    root = _root(tmp_path, files=[f"d{i:02d}/f.log" for i in range(40)])
     monkeypatch.setattr(file_roots, "MAX_MATCHES", 3)
-    consumed = 0
-    real_glob = Path.glob
-
-    def counting_glob(self, pattern):
-        nonlocal consumed
-        for path in real_glob(self, pattern):
-            consumed += 1
-            yield path
-
-    monkeypatch.setattr(Path, "glob", counting_glob)
-    matches, capped = file_roots.resolve_matches_bounded("*.log", (root,))
+    calls = _count_scandir(monkeypatch)
+    matches, capped = file_roots.resolve_matches_bounded("**/*.log", (root,))
     assert capped and len(matches) == 3
-    assert consumed <= 4, consumed
+    assert calls["n"] <= 5, calls
 
 
 def test_exactly_the_cap_is_not_reported_as_capped(tmp_path, monkeypatch):
@@ -179,28 +182,98 @@ def test_very_long_line_is_read_in_bounded_pieces(tmp_path, monkeypatch):
     assert pieces == ["a" * 1000, "a" * 1000, "a" * 500, "b"]
 
 
-@pytest.mark.parametrize("pattern", ["link/**/*.zzz", "*/*/*.zzz"])
-def test_symlink_to_a_big_outside_tree_is_bounded_by_the_scan_budget(tmp_path, monkeypatch, pattern):
-    """A symlinked directory inside the root (link -> /) is followed by a
-    literal or '*' component; the scan budget stops the walk."""
+def _outside_tree(tmp_path, dirs=30, with_files=True):
     outside = tmp_path / "outside"
-    for i in range(30):
+    for i in range(dirs):
         (outside / f"d{i:02d}").mkdir(parents=True)
-        for j in range(10):
-            (outside / f"d{i:02d}" / f"f{j}.zzz").write_text("x\n")
+        if with_files:
+            for j in range(10):
+                (outside / f"d{i:02d}" / f"f{j}.zzz").write_text("x\n")
+    return outside
+
+
+@pytest.mark.parametrize("pattern", ["link/**/*.zzz", "*/*/*.zzz", "link/**/*.nomatch", "**/*.zzz"])
+def test_symlink_out_of_the_root_is_never_entered(tmp_path, monkeypatch, pattern):
+    """A symlinked directory inside the root (link -> elsewhere, even /) is
+    not followed, whether or not anything there would match."""
     root = _root(tmp_path)
-    (root / "link").symlink_to(outside, target_is_directory=True)
-    monkeypatch.setattr(file_roots, "MAX_SCANNED", 50)
-    consumed = 0
-    real_glob = Path.glob
-
-    def counting_glob(self, pat):
-        nonlocal consumed
-        for path in real_glob(self, pat):
-            consumed += 1
-            yield path
-
-    monkeypatch.setattr(Path, "glob", counting_glob)
+    (root / "link").symlink_to(_outside_tree(tmp_path), target_is_directory=True)
+    calls = _count_scandir(monkeypatch)
     matches, capped = file_roots.resolve_matches_bounded(pattern, (root,))
+    assert matches == [] and not capped
+    assert calls["n"] <= 2, calls
+
+
+def test_tree_that_matches_nothing_stops_at_the_scan_budget(tmp_path, monkeypatch):
+    root = _root(tmp_path)
+    for i in range(200):
+        (root / "big" / f"d{i:03d}").mkdir(parents=True)
+    monkeypatch.setattr(file_roots, "MAX_SCANNED", 50)
+    calls = _count_scandir(monkeypatch)
+    matches, capped = file_roots.resolve_matches_bounded("**/*.nomatch", (root,))
     assert matches == [] and capped
-    assert consumed <= 51, consumed
+    assert calls["n"] <= 55, calls
+
+
+def test_symlinked_directory_inside_the_root_is_followed(tmp_path):
+    root = tmp_path / "root"
+    (root / "releases" / "v2").mkdir(parents=True)
+    (root / "releases" / "v2" / "app.log").write_text("x\n")
+    (root / "current").symlink_to(root / "releases" / "v2", target_is_directory=True)
+    matches, capped = file_roots.resolve_matches_bounded("current/*.log", (root,))
+    assert [rel for _, rel in matches] == ["releases/v2/app.log"] and not capped
+
+
+def test_symlink_loop_terminates(tmp_path):
+    root = _root(tmp_path, files=("sub/a.log",))
+    (root / "sub" / "loop").symlink_to(root, target_is_directory=True)
+    matches, capped = file_roots.resolve_matches_bounded("**/*.log", (root,))
+    assert sorted(rel for _, rel in matches) == ["sub/a.log"] and not capped
+
+
+@pytest.mark.parametrize("pattern", [
+    "*.log", "**/*.log", "sub/*.log", "**/sub/*.log", "*/*", "**/a*", "a?.log",
+    "[ab]*.log", "**", "sub/**/x.log", "**/*", ".hidden/*.log", "*/deep/*.txt",
+])
+def test_walker_matches_path_glob_without_symlinks(tmp_path, pattern):
+    root = _root(tmp_path, files=(
+        "a1.log", "b.log", "c.txt", "sub/x.log", "sub/a2.log", "sub/inner/x.log",
+        "other/sub/y.log", "other/deep/z.txt", ".hidden/h.log", "sub/inner/deeper/x.log"))
+    expected = sorted(str(p.relative_to(root)) for p in root.glob(pattern) if p.is_file())
+    got = [rel for _, rel in resolve_matches(pattern, (root,))]
+    assert got == expected
+
+
+def test_fetch_runs_on_the_file_executor_with_the_callers_context(tmp_path, monkeypatch):
+    import contextvars
+    import threading
+    marker = contextvars.ContextVar("marker", default=None)
+    seen = {}
+    root = _root(tmp_path)
+    source = FileLogSource((str(root),))
+    real = source._fetch_sync
+
+    def spy(*args):
+        seen["thread"] = threading.current_thread().name
+        seen["marker"] = marker.get()
+        return real(*args)
+
+    monkeypatch.setattr(source, "_fetch_sync", spy)
+
+    async def main():
+        marker.set("from-caller")
+        return await source.fetch_logs(Entity("*.log"), TimeWindow(), Limit())
+
+    asyncio.run(main())
+    assert seen["thread"].startswith("file-source")
+    assert seen["marker"] == "from-caller"
+
+
+def test_walker_only_descends_where_the_pattern_can_match(tmp_path, monkeypatch):
+    root = _root(tmp_path, files=("sub/x.log",))
+    for i in range(20):
+        (root / "unrelated" / f"d{i:02d}").mkdir(parents=True)
+    calls = _count_scandir(monkeypatch)
+    matches, _ = file_roots.resolve_matches_bounded("sub/*.log", (root,))
+    assert [rel for _, rel in matches] == ["sub/x.log"]
+    assert calls["n"] == 2, calls   # the root and sub/, nothing under unrelated/

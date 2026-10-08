@@ -13,6 +13,7 @@ _BLOCKED_PREFIXES = ("create_", "patch_", "delete_", "replace_", "connect_")
 
 
 # proxy -> raw client; weak keys, so a dropped proxy does not keep its entry.
+# A raw client that refers back to its own proxy would keep both alive.
 _RAW_CLIENTS: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
 
 
@@ -32,6 +33,13 @@ class ReadOnlyK8sClient:
     """
 
     __slots__ = ("__weakref__",)
+
+    def __init_subclass__(cls, **kwargs):
+        # The registry is keyed by the proxy: custom equality would let one
+        # proxy look up another proxy's raw client.
+        super().__init_subclass__(**kwargs)
+        if "__eq__" in cls.__dict__ or "__hash__" in cls.__dict__:
+            raise TypeError("ReadOnlyK8sClient subclasses must not override __eq__/__hash__")
 
     def __init__(self, api):
         _RAW_CLIENTS[self] = api
@@ -64,7 +72,7 @@ class ReadOnlyK8sClient:
                 f"'{name}' is not available through ReadOnlyCoreV1 "
                 f"(read-only client; spec SS4.7)")
         if name.startswith(_READ_PREFIXES):
-            return getattr(_RAW_CLIENTS[self], name)
+            return getattr(_raw_client(self), name)
         raise AttributeError(
             f"ReadOnlyCoreV1 exposes only read verbs; {name!r} denied by design")
 
@@ -77,8 +85,15 @@ def unwrap_readonly(obj):
     never call write verbs on the result.
     """
     if isinstance(obj, ReadOnlyK8sClient):
-        return _RAW_CLIENTS[obj]
+        return _raw_client(obj)
     return obj
+
+
+def _raw_client(proxy: "ReadOnlyK8sClient"):
+    api = _RAW_CLIENTS.get(proxy)
+    if api is None:  # built without __init__ (object.__new__, a subclass skipping super)
+        raise AttributeError("ReadOnlyK8sClient was not initialised with a client")
+    return api
 
 
 # Back-compat alias: 15 pre-1d wrap sites, the spy subclass (tests/_readonly_spy.py),

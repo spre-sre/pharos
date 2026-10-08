@@ -162,9 +162,9 @@ class FileLogSource:
         notes: List[str] = []
         if capped:
             notes.append(
-                f"not all matching files were read: at most {_roots.MAX_MATCHES} files and "
-                f"{_roots.MAX_SCANNED} scanned entries per pattern; "
-                f"{len(matches)} files read, chosen in filesystem order")
+                f"search stopped at a limit ({_roots.MAX_MATCHES} files or "
+                f"{_roots.MAX_SCANNED} directory entries per pattern): "
+                f"{len(matches)} files selected, more may match")
         total_bytes: int = 0
         truncated: bool = False
         undated_note_added: bool = False
