@@ -277,3 +277,54 @@ def test_walker_only_descends_where_the_pattern_can_match(tmp_path, monkeypatch)
     matches, _ = file_roots.resolve_matches_bounded("sub/*.log", (root,))
     assert [rel for _, rel in matches] == ["sub/x.log"]
     assert calls["n"] == 2, calls   # the root and sub/, nothing under unrelated/
+
+
+@pytest.mark.parametrize("files,link,target,pattern,expected", [
+    (("runs/r1/app.log",), "latest", "runs/r1", "*/*/*.log", ["runs/r1/app.log"]),
+    (("a/b/x.log",), "z", "a/b", "*/*/*.log", ["a/b/x.log"]),
+    (("runs/r1/app.log",), "latest", "runs/r1", "**/*.log", ["runs/r1/app.log"]),
+])
+def test_symlink_alias_does_not_hide_the_real_path(tmp_path, files, link, target, pattern, expected):
+    """A link such as latest -> runs/r1 must not claim runs/r1 for itself."""
+    root = _root(tmp_path, files=files)
+    (root / link).symlink_to(root / target, target_is_directory=True)
+    matches, _ = file_roots.resolve_matches_bounded(pattern, (root,))
+    assert [rel for _, rel in matches] == expected
+
+
+def test_one_huge_directory_is_read_only_up_to_the_budget(tmp_path, monkeypatch):
+    root = tmp_path / "root"
+    root.mkdir()
+    for i in range(2000):
+        (root / f"f{i:04d}.txt").write_text("")
+    monkeypatch.setattr(file_roots, "MAX_SCANNED", 10)
+    pulled = {"n": 0}
+    real_scandir = file_roots.os.scandir
+
+    class _Counting:
+        def __init__(self, path):
+            self._it = real_scandir(path)
+
+        def __enter__(self):
+            self._it.__enter__()
+            return self
+
+        def __exit__(self, *exc):
+            return self._it.__exit__(*exc)
+
+        def __iter__(self):
+            for entry in self._it:
+                pulled["n"] += 1
+                yield entry
+
+    monkeypatch.setattr(file_roots.os, "scandir", _Counting)
+    matches, capped = file_roots.resolve_matches_bounded("*.log", (root,))
+    assert matches == [] and capped
+    assert pulled["n"] <= 11, pulled
+
+
+@pytest.mark.parametrize("pattern", ["sub/*/", "*/", "sub/"])
+def test_trailing_slash_names_directories_only(tmp_path, pattern):
+    root = _root(tmp_path, files=("sub/inner/x.log", "sub/a.log"))
+    expected = sorted(str(p.relative_to(root)) for p in root.glob(pattern) if p.is_file())
+    assert [rel for _, rel in resolve_matches(pattern, (root,))] == expected == []

@@ -104,8 +104,26 @@ def test_uninitialised_proxy_raises_attribute_error_not_key_error():
         unwrap_readonly(proxy)
 
 
-def test_subclass_cannot_override_equality():
-    with pytest.raises(TypeError):
-        class _Bad(ReadOnlyK8sClient):
-            def __eq__(self, other):
-                return True
+def test_custom_equality_in_a_subclass_cannot_cross_wire_clients():
+    """The registry is keyed by identity, so __eq__/__hash__ do not matter."""
+    class _Equal(ReadOnlyK8sClient):
+        def __eq__(self, other):
+            return True
+
+        def __hash__(self):
+            return 1
+
+    raw_a, raw_b = _FakeApi(), _FakeApi()
+    a, b = _Equal(raw_a), _Equal(raw_b)
+    assert unwrap_readonly(a) is raw_a
+    assert unwrap_readonly(b) is raw_b
+
+
+def test_registry_entry_is_dropped_with_the_proxy():
+    import core.readonly_client as rc
+    before = len(rc._RAW_CLIENTS)
+    proxy = ReadOnlyK8sClient(_FakeApi())
+    assert len(rc._RAW_CLIENTS) == before + 1
+    del proxy
+    gc.collect()
+    assert len(rc._RAW_CLIENTS) == before

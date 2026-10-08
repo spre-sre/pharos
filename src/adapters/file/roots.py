@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 from fnmatch import fnmatchcase
+from itertools import islice
 from pathlib import Path
 from typing import FrozenSet, List, Set, Tuple
 
@@ -55,15 +56,18 @@ def resolve_matches_bounded(pattern: str,
       resolved, then prefix-checked; one that escapes raises.
     - Glob patterns are matched by our own walker (not ``Path.glob``): it
       descends only into directories that can still match the pattern,
-      counts every entry it reads against MAX_SCANNED, follows a symlinked
-      directory only when it resolves inside the root (and never twice),
-      and silently skips files that resolve outside the root.
+      counts every entry it reads against MAX_SCANNED (a directory is read
+      only up to the remaining budget), follows a symlinked directory only
+      when it resolves inside the root (a directory is entered once per
+      pattern state, so loops end and a link such as latest -> runs/r1 does
+      not hide runs/r1), and silently skips files that resolve outside the
+      root.
     - Each root is resolved first (macOS ``/var/folders -> /private/var``).
     """
     if not pattern:
         raise PathOutsideRoots("empty pattern is not allowed")
-    if pattern == ".":
-        return [], False
+    if pattern == "." or pattern.endswith("/"):
+        return [], False  # names directories only; directories are never returned
     if Path(pattern).is_absolute():
         raise PathOutsideRoots(f"absolute paths are not allowed: {pattern!r}")
     parts = Path(pattern).parts
@@ -128,14 +132,17 @@ class _Walker:
         return self._closure(nxt)
 
     def walk_root(self, root: Path) -> None:
-        visited: Set[Path] = {root}
-        stack = [(root, self._closure({0}))]
+        start = self._closure({0})
+        visited: Set[Tuple[Path, FrozenSet[int]]] = {(root, start)}
+        stack = [(root, start)]
         end = len(self.segments)
         while stack and not self.capped:
             directory, states = stack.pop()
             try:
                 with os.scandir(directory) as it:
-                    entries = sorted(it, key=lambda e: e.name)
+                    # never read more of one directory than the budget allows
+                    entries = sorted(islice(it, MAX_SCANNED - self.scanned + 1),
+                                     key=lambda e: e.name)
             except OSError:
                 continue  # unreadable or vanished: skipped, as glob does
             subdirs = []
@@ -155,9 +162,9 @@ class _Walker:
                     if not any(i < end for i in sub_states):
                         continue  # nothing below can match
                     real = Path(entry.path).resolve() if is_link else Path(entry.path)
-                    if real in visited or not (real == root or root in real.parents):
+                    if (real, sub_states) in visited or not (real == root or root in real.parents):
                         continue  # loop, or a symlink out of the root
-                    visited.add(real)
+                    visited.add((real, sub_states))
                     subdirs.append((real, sub_states))
                 elif is_file and end in self._step(states, entry.name, False):
                     real = Path(entry.path).resolve() if is_link else Path(entry.path)
