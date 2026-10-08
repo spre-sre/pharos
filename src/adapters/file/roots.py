@@ -5,6 +5,7 @@ resolved roots.  The returned relpath (relative to its root) is the ONLY path
 form that may reach LogRecord attributes, envelopes, or goldens."""
 from __future__ import annotations
 
+from itertools import islice
 from pathlib import Path
 from typing import List, Tuple
 
@@ -18,12 +19,26 @@ class PathOutsideRoots(_AdapterError):
     """The requested path resolves outside every configured allowlist root."""
 
 
+# Most matching files one pattern returns (per call, over all roots).
+MAX_MATCHES = 1000
+
+
 def _is_glob(pattern: str) -> bool:
     return any(ch in pattern for ch in "*?[")
 
 
 def resolve_matches(pattern: str, roots: Tuple[Path, ...]) -> List[Tuple[Path, str]]:
-    """Return (abs_path, relpath) pairs for *pattern* inside *roots*.
+    """Return (abs_path, relpath) pairs for *pattern* inside *roots*
+    (at most MAX_MATCHES; see :func:`resolve_matches_bounded`)."""
+    return resolve_matches_bounded(pattern, roots)[0]
+
+
+def resolve_matches_bounded(pattern: str,
+                            roots: Tuple[Path, ...]) -> Tuple[List[Tuple[Path, str]], bool]:
+    """Return ((abs_path, relpath) pairs for *pattern* inside *roots*, capped).
+
+    ``capped`` is True when more than MAX_MATCHES files matched; only the
+    first MAX_MATCHES found are returned (sorted by relpath).
 
     Security properties:
     - Empty pattern raises :exc:`PathOutsideRoots` (degenerate — glob would
@@ -31,6 +46,9 @@ def resolve_matches(pattern: str, roots: Tuple[Path, ...]) -> List[Tuple[Path, s
     - Pattern ``"."`` returns an empty list (names the root directory itself,
       never a file; avoiding a potential IndexError on some Python versions).
     - Absolute patterns always raise :exc:`PathOutsideRoots`.
+    - Patterns with a ``..`` component always raise :exc:`PathOutsideRoots`
+      before any glob runs: ``../../**/*`` would otherwise walk the whole
+      filesystem above the root, even though nothing outside is returned.
     - Symlinks and ``..`` components are resolved before the root prefix-check
       so that escape attempts via either mechanism are caught.
     - Glob patterns silently skip matches that resolve outside their root.
@@ -49,26 +67,39 @@ def resolve_matches(pattern: str, roots: Tuple[Path, ...]) -> List[Tuple[Path, s
     if not pattern:
         raise PathOutsideRoots("empty pattern is not allowed")
     if pattern == ".":
-        return []
+        return [], False
 
     if Path(pattern).is_absolute():
         raise PathOutsideRoots(f"absolute paths are not allowed: {pattern!r}")
+    if ".." in Path(pattern).parts:
+        raise PathOutsideRoots(f"'..' is not allowed in patterns: {pattern!r}")
 
     out: List[Tuple[Path, str]] = []
     escaped_exact = False
+    capped = False
 
     for root in roots:
         root = root.resolve()  # macOS /var/folders → /private/var safety
 
-        for m in sorted(root.glob(pattern)):
-            real = m.resolve()
-            inside = real == root or root in real.parents
-            if not inside:
-                # Non-glob pattern that escapes: remember for post-loop raise.
-                escaped_exact = escaped_exact or not _is_glob(pattern)
-                continue
-            if real.is_file():
-                out.append((real, str(real.relative_to(root))))
+        def _inside_files():
+            nonlocal escaped_exact
+            for m in root.glob(pattern):
+                real = m.resolve()
+                inside = real == root or root in real.parents
+                if not inside:
+                    # Non-glob pattern that escapes: remember for post-loop raise.
+                    escaped_exact = escaped_exact or not _is_glob(pattern)
+                    continue
+                if real.is_file():
+                    yield (real, str(real.relative_to(root)))
+
+        # Lazily, so a huge tree stops at the cap instead of being listed whole
+        room = MAX_MATCHES - len(out)
+        found = list(islice(_inside_files(), room + 1))
+        if len(found) > room:
+            capped = True
+            found = found[:room]
+        out.extend(sorted(found, key=lambda t: t[1]))
 
         # Direct probe for py3.10/3.11 portability: those versions may not
         # yield results for ``root.glob("../x")``.  We replicate the same
@@ -82,8 +113,11 @@ def resolve_matches(pattern: str, roots: Tuple[Path, ...]) -> List[Tuple[Path, s
             if not inside and real.exists():
                 escaped_exact = True
 
+        if capped:
+            break
+
     if not out and not _is_glob(pattern) and escaped_exact:
         raise PathOutsideRoots(
             f"{pattern!r} resolves outside the configured roots")
 
-    return sorted(out, key=lambda t: t[1])
+    return sorted(out, key=lambda t: t[1]), capped

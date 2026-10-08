@@ -30,9 +30,9 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, Optional, TypeVar
 
 try:
-    from core.readonly_client import ReadOnlyK8sClient
+    from core.readonly_client import unwrap_readonly
 except ImportError:  # imported as src.core.k8s_async (repo root on sys.path)
-    from src.core.readonly_client import ReadOnlyK8sClient
+    from src.core.readonly_client import unwrap_readonly
 
 T = TypeVar("T")
 
@@ -67,10 +67,8 @@ def _api_host(obj: Any) -> Optional[str]:
 def _unwrap(obj: Any) -> Any:
     """The real API object behind a ReadOnlyK8sClient, read directly (no
     attribute access through the wrapper, so read-only spies see no extra
-    lookups)."""
-    if isinstance(obj, ReadOnlyK8sClient):
-        return object.__getattribute__(obj, "_api")
-    return obj
+    lookups); only its configuration host is read."""
+    return unwrap_readonly(obj)
 
 
 def _host_of(obj: Any, _depth: int = 0) -> Optional[str]:

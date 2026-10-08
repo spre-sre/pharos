@@ -129,13 +129,13 @@ async def test_get_pod_logs_explicit_clients_uses_fake(server, monkeypatch):
     assert "k8s_core_api" in captured, "spy_get_all_pod_logs was never called"
     # get_pod_logs wraps _c.core_api with ReadOnlyCoreV1.wrap before passing
     received = captured["k8s_core_api"]
-    # The proxy's _api must be the fake's core_api (or the proxy itself if already wrapped)
-    from core.readonly_client import ReadOnlyK8sClient
+    # The proxy must wrap the fake's core_api
+    from core.readonly_client import ReadOnlyK8sClient, unwrap_readonly
     assert isinstance(received, ReadOnlyK8sClient), (
         f"Expected ReadOnlyK8sClient proxy; got {type(received).__name__}"
     )
-    assert received._api is fake_core, (
-        f"Expected proxy wrapping fake_core; got proxy._api={received._api!r}"
+    assert unwrap_readonly(received) is fake_core, (
+        f"Expected proxy wrapping fake_core; got proxy wraps {unwrap_readonly(received)!r}"
     )
 
 
@@ -155,14 +155,14 @@ async def test_get_pod_logs_no_clients_uses_module_global(server, monkeypatch):
     await server.get_pod_logs(namespace="ns", pod_name="pod")
 
     assert "k8s_core_api" in captured, "spy_get_all_pod_logs was never called"
-    from core.readonly_client import ReadOnlyK8sClient
+    from core.readonly_client import ReadOnlyK8sClient, unwrap_readonly
     received = captured["k8s_core_api"]
     assert isinstance(received, ReadOnlyK8sClient), (
         f"Expected ReadOnlyK8sClient proxy; got {type(received).__name__}"
     )
     # The proxy must wrap the module global (fake_global)
-    assert received._api is fake_global, (
-        f"Default path must use module-global; got proxy._api={received._api!r}"
+    assert unwrap_readonly(received) is fake_global, (
+        f"Default path must use module-global; got proxy wraps {unwrap_readonly(received)!r}"
     )
 
 

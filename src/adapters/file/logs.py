@@ -11,11 +11,13 @@ missing root raises immediately.  Matches are resolved and prefix-checked via
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
+from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-from adapters.file.roots import resolve_matches
+from adapters.file.roots import MAX_MATCHES, resolve_matches_bounded
 from adapters.file.sniff import detect_format, parse_line
 from core.selector import (
     Entity,
@@ -29,6 +31,24 @@ from core.signals import LogBatch, LogRecord, Provenance
 
 # Number of non-blank lines fed to detect_format (mirrors sniff._SAMPLE_LINES).
 _SAMPLE_LINES: int = 20
+# Longest piece of a line read at once; a longer line becomes several records,
+# so a file with no newlines cannot be loaded into memory whole.
+MAX_LINE_CHARS: int = 1 << 20
+
+
+def _iter_lines(path: Path) -> Iterator[str]:
+    """Stream the lines of *path* with the boundaries of ``str.splitlines()``.
+
+    Reads at most MAX_LINE_CHARS at a time, so the limits in ``fetch_logs``
+    stop the read instead of applying after a whole-file ``read_text``.
+    """
+    with open(path, errors="replace") as fh:
+        while True:
+            chunk = fh.readline(MAX_LINE_CHARS)
+            if not chunk:
+                return
+            # splitlines also breaks on \x0b, \x0c, \x1c-\x1e, \x85, \u2028 ...
+            yield from chunk.splitlines()
 
 
 def _is_active_window(window: Optional[TimeWindow]) -> bool:
@@ -95,6 +115,9 @@ class FileLogSource:
         Returns a :class:`~core.signals.LogBatch`.  An empty glob produces an
         empty batch (never raises).  :exc:`~adapters.file.roots.PathOutsideRoots`
         propagates from :func:`~adapters.file.roots.resolve_matches` unchanged.
+
+        The glob and the file reads run in a worker thread, never on the
+        event loop.
         """
         if isinstance(selector, Matchers):
             raise SelectorNotSupported(
@@ -105,10 +128,19 @@ class FileLogSource:
                 requested=type(selector).__name__, supported=("Entity",)
             )
 
+        return await asyncio.to_thread(self._fetch_sync, selector, window, limit)
+
+    def _fetch_sync(
+        self,
+        selector: Any,
+        window: Optional[TimeWindow],
+        limit: Optional[Limit],
+    ) -> LogBatch:
         pattern: str = selector.name_or_pattern  # Entity.name_or_pattern
 
         # PathOutsideRoots propagates to the caller unchanged (spec §4.7).
-        matches: List[Tuple[Path, str]] = resolve_matches(pattern, self._roots)
+        matches: List[Tuple[Path, str]]
+        matches, capped = resolve_matches_bounded(pattern, self._roots)
 
         max_rec: Optional[int] = limit.max_records if limit else None
         max_bytes: Optional[int] = limit.max_bytes if limit else None
@@ -116,6 +148,8 @@ class FileLogSource:
 
         records: List[LogRecord] = []
         notes: List[str] = []
+        if capped:
+            notes.append(f"only the first {MAX_MATCHES} matching files were read")
         total_bytes: int = 0
         truncated: bool = False
         undated_note_added: bool = False
@@ -125,14 +159,19 @@ class FileLogSource:
             if done:
                 break
 
-            content = abs_path.read_text(errors="replace")
-            lines = content.splitlines()
-
-            # Sample non-blank lines for format detection.
-            sample = [ln for ln in lines if ln.strip()][:_SAMPLE_LINES]
+            line_iter = _iter_lines(abs_path)
+            # Sample the first non-blank lines for format detection.
+            head: List[str] = []
+            sample: List[str] = []
+            for ln in line_iter:
+                head.append(ln)
+                if ln.strip():
+                    sample.append(ln)
+                    if len(sample) >= _SAMPLE_LINES:
+                        break
             fmt = detect_format(sample)
 
-            for raw_line in lines:
+            for raw_line in chain(head, line_iter):
                 if not raw_line.strip():
                     continue  # skip blank lines — no meaningful body
 
@@ -226,8 +265,7 @@ def _has_more_content(
     """
     seen: int = 0
     for abs_path, _ in matches:
-        content = abs_path.read_text(errors="replace")
-        for raw_line in content.splitlines():
+        for raw_line in _iter_lines(abs_path):
             if not raw_line.strip():
                 continue
             seen += 1

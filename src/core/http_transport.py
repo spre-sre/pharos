@@ -5,6 +5,7 @@ module that triggers server-mcp's side-effects.
 
 Task 1 surface: resolve_transport only.
 Task 2 surface: resolve_http_serving, verify_bearer, BearerASGIMiddleware.
+OTLP open receiver: LoopbackHostASGIMiddleware (DNS-rebinding Host check).
 """
 from __future__ import annotations
 
@@ -116,4 +117,62 @@ class BearerASGIMiddleware:
         await send({
             "type": "http.response.body",
             "body": b'{"error":"unauthorized"}',
+        })
+
+
+def _host_is_loopback(host_header: Optional[str]) -> bool:
+    """True iff a Host header names 127.0.0.1, localhost or [::1] (any port)."""
+    if not host_header:
+        return False
+    value = host_header.strip().lower()
+    if value.startswith("["):
+        end = value.find("]")
+        if end < 0:
+            return False
+        host, rest = value[1:end], value[end + 1:]
+        if host != "::1":
+            return False
+    else:
+        host, sep, port = value.partition(":")
+        rest = sep + port
+        if host not in ("127.0.0.1", "localhost"):
+            return False
+    return rest == "" or (rest.startswith(":") and rest[1:].isdigit())
+
+
+class LoopbackHostASGIMiddleware:
+    """Reject HTTP requests whose Host header is not a loopback name.
+
+    For a receiver served open on loopback (no token): a web page that
+    rebinds its own name to 127.0.0.1 (DNS rebinding) reaches the port with
+    ``Host: attacker.example``; this answers 403 before the app sees it.
+    'lifespan' passes through; any other non-http scope is rejected, as in
+    BearerASGIMiddleware.
+    """
+
+    def __init__(self, app):
+        self._app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "lifespan":
+            return await self._app(scope, receive, send)
+        if scope["type"] != "http":
+            raise RuntimeError(
+                f"unsupported scope for loopback transport: {scope['type']}"
+            )
+        host = None
+        for k, v in scope.get("headers", []):
+            if k.decode("latin-1").lower() == "host":
+                host = v.decode("latin-1")
+                break
+        if _host_is_loopback(host):
+            return await self._app(scope, receive, send)
+        await send({
+            "type": "http.response.start",
+            "status": 403,
+            "headers": [(b"content-type", b"application/json")],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": b'{"error":"forbidden host"}',
         })

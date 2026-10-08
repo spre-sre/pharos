@@ -126,6 +126,11 @@ def _start_otlp_receiver(server_module) -> Optional[uvicorn.Server]:
     # token is None for serve_open (bare app), truthy for serve_authed
     # (BearerASGIMiddleware applied inside build_receiver_app).
     otlp_app = build_receiver_app(otlp_ring, otlp_opts, otlp_token)
+    if otlp_decision == "serve_open":
+        # No token on loopback: refuse foreign Host headers (DNS rebinding);
+        # with a token, a rebinding page cannot authenticate anyway.
+        from core.http_transport import LoopbackHostASGIMiddleware
+        otlp_app = LoopbackHostASGIMiddleware(otlp_app)
 
     # MINOR-7: name the offending env var on int() failure.
     _otlp_port_str = os.environ.get("LUMINO_OTLP_BIND_PORT", "4318")
