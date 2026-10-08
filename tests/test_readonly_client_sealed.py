@@ -120,10 +120,12 @@ def test_custom_equality_in_a_subclass_cannot_cross_wire_clients():
 
 
 def test_registry_entry_is_dropped_with_the_proxy():
+    """Checked by this proxy's own raw client: the registry is global, and
+    other tests' proxies may be collected at the same time."""
     import core.readonly_client as rc
-    before = len(rc._RAW_CLIENTS)
-    proxy = ReadOnlyK8sClient(_FakeApi())
-    assert len(rc._RAW_CLIENTS) == before + 1
+    raw = _FakeApi()
+    proxy = ReadOnlyK8sClient(raw)
+    assert any(v is raw for v in rc._RAW_CLIENTS.values())
     del proxy
     gc.collect()
-    assert len(rc._RAW_CLIENTS) == before
+    assert not any(v is raw for v in rc._RAW_CLIENTS.values())
