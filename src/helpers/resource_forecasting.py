@@ -95,7 +95,8 @@ def _series_points(metric: Dict[str, Any]) -> List[Tuple[float, float]]:
 
 
 def _usage_trend(metric: Dict[str, Any], now: datetime,
-                 horizon: timedelta = MAX_PROJECTION) -> Optional[Dict[str, Any]]:
+                 horizon: timedelta = MAX_PROJECTION,
+                 horizon_label: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Current usage, growth per 5 minutes and predicted exhaustion of a series.
 
     prometheus_query returns at most 50 downsampled points per series (the
@@ -115,24 +116,34 @@ def _usage_trend(metric: Dict[str, Any], now: datetime,
         if math.isfinite(slope):
             slope_per_second = float(slope)
 
-    horizon = min(horizon, MAX_PROJECTION)
+    if horizon >= MAX_PROJECTION:
+        horizon, horizon_label = MAX_PROJECTION, f'{MAX_PROJECTION.days}d'
+    horizon_label = horizon_label or f'{horizon.total_seconds() / 3600:g}h'
     recent = [v for _, v in points[-_RECENT_SAMPLES:]]
+    recent_mean = sum(recent) / len(recent)
     predicted_exhaustion = None
     exhaustion_note = None
-    if sum(recent) / len(recent) >= EXHAUSTION_PERCENT:
+    if recent_mean >= EXHAUSTION_PERCENT:
         predicted_exhaustion = now.isoformat()
         exhaustion_note = (f'already exhausted: mean of the newest {len(recent)} samples '
                            f'is at or above {EXHAUSTION_PERCENT:g} %')
+    elif current >= EXHAUSTION_PERCENT:
+        exhaustion_note = (f'not projected: newest sample is at or above {EXHAUSTION_PERCENT:g} % '
+                           f'but the mean of the newest {len(recent)} is {recent_mean:.1f} % (spike)')
     elif slope_per_second is None:
         exhaustion_note = 'not projected: no trend'
     elif slope_per_second <= 0:
         exhaustion_note = 'not projected: usage is not growing'
     else:
         seconds = (EXHAUSTION_PERCENT - current) / slope_per_second
-        if 0 < seconds <= horizon.total_seconds():
+        if seconds <= horizon.total_seconds():
             predicted_exhaustion = (now + timedelta(seconds=seconds)).isoformat()
+        elif seconds <= MAX_PROJECTION.total_seconds():
+            exhaustion_note = (f'not projected: reaches {EXHAUSTION_PERCENT:g} % in about '
+                               f'{seconds / 86400:.1f} days, beyond the {horizon_label} horizon')
         else:
-            exhaustion_note = f'not projected: {EXHAUSTION_PERCENT:g} % is not reached within {horizon}'
+            exhaustion_note = (f'not projected: {EXHAUSTION_PERCENT:g} % is not reached '
+                               f'within {MAX_PROJECTION.days} days')
 
     trend = {
         'current': current,
@@ -167,9 +178,11 @@ async def _analyze_node_resources_new(trend_period: str, forecast_horizon: str, 
         forecasts = []
         filtered_count = 0
         try:
-            horizon = parse_time_period(forecast_horizon)
+            horizon, horizon_label = parse_time_period(forecast_horizon), forecast_horizon
         except Exception:
-            horizon = MAX_PROJECTION
+            log.warning(f"Invalid forecast_horizon {forecast_horizon!r}; projecting up to "
+                        f"{MAX_PROJECTION.days} days")
+            horizon, horizon_label = MAX_PROJECTION, None
 
         for resource_type, query, limit, factors in _NODE_QUERIES:
             try:
@@ -198,7 +211,7 @@ async def _analyze_node_resources_new(trend_period: str, forecast_horizon: str, 
 
                 # One bad series must not drop the others
                 try:
-                    trend = _usage_trend(metric, end_time, horizon)
+                    trend = _usage_trend(metric, end_time, horizon, horizon_label)
                 except Exception as e:
                     log.warning(f"Could not compute {resource_type} trend for {node}: {str(e)}")
                     continue
@@ -311,7 +324,8 @@ async def _analyze_cluster_capacity_new(core_api, log, *, query_fn) -> Dict[str,
             "current_cpu_usage": _percent(cpu_usage_percent),
             "current_memory_usage": _percent(memory_usage_percent),
             "data_source": {
-                "nodes": "unavailable" if nodes_error else "kubernetes",
+                "nodes": ("kubernetes" if not nodes_error
+                          else "partial" if total_nodes is not None else "unavailable"),
                 "cpu": "unavailable" if cpu_usage_percent is None else "prometheus",
                 "memory": "unavailable" if memory_usage_percent is None else "prometheus",
             },

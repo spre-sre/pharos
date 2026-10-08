@@ -808,7 +808,7 @@ from helpers.prometheus import (
     _promql_label_value,
 )
 from helpers.utils import _safe_compile_namespace_filter, _parse_time_parameter, _handle_api_exception, _get_fallback_cluster_health
-from helpers.utils import list_nodes_bounded, _to_utc, _unread_containers_reason
+from helpers.utils import list_nodes_bounded, parse_time_period, _to_utc, _unread_containers_reason
 from helpers.utils import _get_active_node_names  # noqa: F401 - re-exported for test monkeypatch surface
 from helpers.event_analysis import (  # noqa: F401 - re-exported for test monkeypatch surface
     _compress_events_for_synthesis,
@@ -3286,6 +3286,7 @@ async def get_pod_logs(
     timestamps: bool = True,
     previous: bool = False,
     clients: Optional["K8sClientSet"] = None,
+    report_unread: bool = False,
 ) -> Dict[str, Any]:
     """
     Get logs from a pod using the same interface expected by analysis tools.
@@ -3303,6 +3304,9 @@ async def get_pod_logs(
         timestamps: Include timestamps in log output
         previous: Retrieve logs from previous container instance
         clients: Optional K8sClientSet for per-instance dispatch; None uses _DefaultClientView.
+        report_unread: When True, containers whose logs cannot be read are
+            left out of "logs" and listed in "unread_containers"; otherwise
+            their value in "logs" is the error text (legacy behaviour).
 
     Returns:
         Dict with either:
@@ -3312,7 +3316,7 @@ async def get_pod_logs(
         - {"error": "error_message"} on failure
     """
     _c = clients if clients is not None else _DefaultClientView()
-    unread: Dict[str, str] = {}
+    unread: Optional[Dict[str, str]] = {} if report_unread else None
     try:
         # Call the underlying get_all_pod_logs function
         pod_logs = await get_all_pod_logs(
@@ -3339,7 +3343,7 @@ async def get_pod_logs(
             if container_name:
                 if container_name in pod_logs:
                     return {"logs": {container_name: pod_logs[container_name]}}
-                elif container_name in unread:
+                elif unread and container_name in unread:
                     return {"error": f"Could not read logs of container '{container_name}': {unread[container_name]}"}
                 else:
                     return {"error": f"Container '{container_name}' not found in pod '{pod_name}'"}
@@ -5411,6 +5415,7 @@ async def smart_summarize_pod_logs(
                 namespace=namespace,
                 pod_name=pod_name,
                 clients=_clients,
+                report_unread=True,
                 **log_params
             )
 
@@ -6037,7 +6042,7 @@ async def conservative_namespace_overview(
         if failed_pods:
             first_pod, first_reason = next(iter(failed_pods.items()))
             recommendations.append(
-                f"{len(failed_pods)}/{len(findings)} sampled pods could not be analyzed "
+                f"{len(failed_pods)}/{len(findings)} sampled pods could not be fully analyzed "
                 f"(e.g. {first_pod}: {first_reason[:150]}) - their health is unknown"
             )
         if issues_found:
@@ -6300,7 +6305,7 @@ async def adaptive_namespace_investigation(
 
         failed_pods = {name: f["error"] for name, f in findings.items() if "error" in f}
         denied_pods = sum(1 for reason in failed_pods.values()
-                          if re.search(r"\(403\)|forbidden", reason, re.IGNORECASE))
+                          if "(403)" in reason)
         pods_analyzed = pods_attempted - len(failed_pods)
         events_error = events_result.get("error")
 
@@ -6327,7 +6332,7 @@ async def adaptive_namespace_investigation(
         if failed_pods:
             first_pod, first_reason = next(iter(failed_pods.items()))
             recommendations.append(
-                f"{len(failed_pods)}/{pods_attempted} pods could not be analyzed "
+                f"{len(failed_pods)}/{pods_attempted} pods could not be fully analyzed "
                 f"(e.g. {first_pod}: {first_reason[:150]}) - their health is unknown"
             )
         if events_error:
@@ -9661,6 +9666,12 @@ async def resource_bottleneck_forecaster(
         # Default resource types if not specified
         if resource_types is None:
             resource_types = ["cpu", "memory", "disk", "network", "pvc"]
+
+        try:
+            parse_time_period(forecast_horizon)
+        except (ValueError, TypeError, AttributeError):
+            return {"error": f"Invalid forecast_horizon {forecast_horizon!r}: use a number "
+                             "followed by s, m, h or d (e.g. '24h', '7d')"}
 
         # Test Prometheus connectivity using the tool
         try:

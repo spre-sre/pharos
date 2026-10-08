@@ -695,7 +695,7 @@ async def get_all_pod_logs(
     except Exception as e:
         if hasattr(e, 'reason'):
             logger.error(f"Error getting pod details for {pod_name}: {e}")
-            return {"pod_error": f"Error getting pod details: {e.reason}"}
+            return {"pod_error": f"Error getting pod details: {_api_error_reason(e)}"}
         else:
             logger.error(f"Unexpected error getting pod details for {pod_name}: {e}")
             return {"pod_error": f"Unexpected error getting pod details: {str(e)}"}

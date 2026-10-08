@@ -409,7 +409,8 @@ def test_one_hot_sample_is_not_exhaustion():
     now = datetime.now(timezone.utc)
     metric = {"values": [[1000, "60"], [1300, "62"], [1600, "61"], [1900, "60"], [2200, "95"]]}
     trend = rf._usage_trend(metric, now)
-    assert trend["predicted_exhaustion"] != now.isoformat()
+    assert trend["predicted_exhaustion"] is None
+    assert "spike" in trend["exhaustion_note"]
 
 
 def test_exhausted_series_has_a_note():
@@ -420,7 +421,8 @@ def test_exhausted_series_has_a_note():
 
 @pytest.mark.parametrize("values,note", [
     ([[1000, "50"], [1300, "49"], [1600, "48"]], "not growing"),
-    ([[1000, "10"], [1300, "10.01"], [1600, "10.02"]], "not reached within 1 day"),
+    ([[1000, "10"], [1300, "10.01"], [1600, "10.02"]], "in about 27.8 days, beyond the 24h horizon"),
+    ([[1000, "10"], [1300, "10.000001"], [1600, "10.000002"]], "not reached within 365 days"),
 ])
 def test_unprojected_exhaustion_has_a_note(values, note):
     trend = rf._usage_trend({"values": values}, datetime.now(timezone.utc), timedelta(days=1))
@@ -443,7 +445,8 @@ async def test_projection_is_limited_to_the_forecast_horizon(monkeypatch):
     monkeypatch.setattr(rf, "get_active_node_names_bounded", no_active_filter)
     (short,) = await rf._analyze_node_resources_new("7d", "1h", _Log(), query_fn=query_fn, core_api=None)
     (long,) = await rf._analyze_node_resources_new("7d", "24h", _Log(), query_fn=query_fn, core_api=None)
-    assert short["predicted_exhaustion"] is None and "within" in short["exhaustion_note"]
+    assert short["predicted_exhaustion"] is None
+    assert "beyond the 1h horizon" in short["exhaustion_note"]
     assert long["predicted_exhaustion"] is not None
 
 
@@ -469,5 +472,15 @@ async def test_unparsable_capacity_keeps_node_count_and_reason():
     out = await rf._analyze_cluster_capacity_new(_Core(), _Log(), query_fn=_capacity_query_fn("40.0", "40.0"))
     assert out["total_nodes"] == 1
     assert out["total_cpu_cores"] is None
-    assert out["data_source"]["nodes"] == "unavailable"
+    assert out["data_source"]["nodes"] == "partial"
     assert out["nodes_error"]
+
+
+@pytest.mark.asyncio
+async def test_invalid_forecast_horizon_is_an_error(server, monkeypatch):
+    async def fake_prom(query, **kwargs):
+        return {"status": "success", "data": []}
+
+    monkeypatch.setattr(server, "prometheus_query", fake_prom)
+    result = await server.resource_bottleneck_forecaster(forecast_horizon="1w")
+    assert "Invalid forecast_horizon" in result["error"]

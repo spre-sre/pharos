@@ -129,7 +129,7 @@ async def test_adaptive_all_pod_logs_forbidden_is_not_healthy(server, monkeypatc
     assert summary["pods_analyzed"] == 0
     assert summary["pods_failed"] == 8
     assert not _says_healthy(result["recommendations"]), result["recommendations"]
-    assert any("could not be analyzed" in r for r in result["recommendations"]), result["recommendations"]
+    assert any("could not be fully analyzed" in r for r in result["recommendations"]), result["recommendations"]
     coverage = result["adaptive_metadata"]["coverage"]
     assert coverage["scanned"] == 0
     assert coverage["denied"] == 8
@@ -200,7 +200,7 @@ async def test_conservative_all_pod_logs_forbidden_is_not_healthy(server, monkey
     assert overview["pods_analyzed"] == 0
     assert overview["pods_failed"] == 8
     assert not _says_healthy(result["recommendations"]), result["recommendations"]
-    assert any("could not be analyzed" in r for r in result["recommendations"])
+    assert any("could not be fully analyzed" in r for r in result["recommendations"])
     assert result["conservative_metadata"]["coverage_ratio"] == "0/8"
     assert "Forbidden" in result["pod_findings"]["pod-0"]["error"]
 
@@ -402,3 +402,28 @@ async def test_conservative_partly_read_pods_are_not_healthy(server, monkeypatch
 
     assert (result["overview"]["pods_analyzed"], result["overview"]["pods_failed"]) == (0, 8)
     assert not _says_healthy(result["recommendations"]), result["recommendations"]
+
+
+@pytest.mark.asyncio
+async def test_other_log_tools_keep_unread_containers_inline(server, monkeypatch):
+    """Only smart_summarize_pod_logs opts in to unread_containers; the other
+    get_pod_logs callers still see the error text, never a silent drop."""
+    clients = SimpleNamespace(core_api=_MainWaitingCore())
+
+    result = await server.get_pod_logs(namespace="team-a", pod_name="pod-0", clients=clients)
+
+    assert "unread_containers" not in result
+    assert "waiting to start" in result["logs"]["main"]
+    assert "proxy started" in result["logs"]["sidecar"]
+
+
+@pytest.mark.asyncio
+async def test_forbidden_in_a_pod_name_is_not_denied(server, monkeypatch):
+    _patch(server, monkeypatch, analysis={"error": (
+        "Failed to retrieve logs: Could not read logs of any container (main: (400) Bad Request: "
+        "container \"main\" in pod \"forbidden-proxy-0\" is waiting to start)")})
+
+    result = await server.adaptive_namespace_investigation(namespace="team-a")
+
+    coverage = result["adaptive_metadata"]["coverage"]
+    assert (coverage["denied"], coverage["skipped"]) == (0, 8)
