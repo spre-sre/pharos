@@ -32,6 +32,7 @@ An open source MCP (Model Context Protocol) server empowering SREs with intellig
 - [Contributing](#contributing)
 - [Security](#security)
 - [License](#license)
+- [GitLab Mirror Runbook](#gitlab-mirror-runbook)
 - [Acknowledgments](#acknowledgments)
 
 > **Compatibility note**: the internal `LUMINO_` env prefix, the `lumino-mcp` logger
@@ -1336,6 +1337,12 @@ For security vulnerabilities, please see our [Security Policy](SECURITY.md).
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## GitLab Mirror Runbook
+
+Operational procedures for the GitHub → GitLab pull mirror, including sync status checks, force-sync, divergence recovery, and known platform issues on gitlab.cee.redhat.com.
+
+See [docs/gitlab-mirror-runbook.md](docs/gitlab-mirror-runbook.md).
 
 ## Acknowledgments
 
