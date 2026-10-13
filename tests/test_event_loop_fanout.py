@@ -156,6 +156,39 @@ async def test_topology_fanout_is_bounded(server, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_topology_namespaces_in_flight_are_bounded(server, monkeypatch):
+    """SPRE-7074: every namespace task holds its fetched object lists while it
+    waits for the shared thread pool, so memory grows with the number of
+    namespace tasks in flight, not with the number of threads. All 100 at once
+    OOM-killed the 512Mi stage pod."""
+    state = {"lock": threading.Lock(), "now": 0, "max": 0, "timeouts": set()}
+    api = _SlowApi([f"ns-{i:03d}" for i in range(300)], state)
+
+    async def _clients(*a, **kw):
+        return {"c1": {"core_api": api, "apps_api": api, "custom_api": api, "storage_api": api}}
+
+    monkeypatch.setattr(server, "get_multi_cluster_topology_clients", _clients)
+
+    in_flight = {"now": 0, "max": 0}
+    real = server._process_namespace_topology
+
+    async def counting(**kwargs):
+        in_flight["now"] += 1
+        in_flight["max"] = max(in_flight["max"], in_flight["now"])
+        try:
+            return await real(**kwargs)
+        finally:
+            in_flight["now"] -= 1
+
+    monkeypatch.setattr(server, "_process_namespace_topology", counting)
+
+    result = await server.live_system_topology_mapper()
+
+    assert in_flight["max"] <= server.MAX_TOPOLOGY_CONCURRENT_NAMESPACES
+    assert result["namespace_truncation"]["c1"]["mapped"] == server.MAX_TOPOLOGY_NAMESPACES
+
+
+@pytest.mark.asyncio
 async def test_topology_small_cluster_not_truncated(server, monkeypatch):
     state = {"lock": threading.Lock(), "now": 0, "max": 0, "timeouts": set()}
     api = _SlowApi(["a", "b"], state)

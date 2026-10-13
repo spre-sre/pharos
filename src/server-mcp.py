@@ -184,7 +184,7 @@ from core.registry import build_registry, SourceEntry, ADAPTER_CAPABILITIES as _
 from core.selector import make_capability_error, Entity, TimeWindow, Limit
 from core.timewindow import make_time_window
 from core.errors import AdapterError
-from core.k8s_async import k8s_call, LOG_TIMEOUT, DEFAULT_TIMEOUT
+from core.k8s_async import k8s_call, LOG_TIMEOUT, DEFAULT_TIMEOUT, MAX_CONCURRENT_CALLS
 from core.credentials import _parse_credential_ref
 from engines.pattern_scan import scan as _scan_logs
 from engines.log_anomaly import detect as _detect_log_anomalies
@@ -8650,6 +8650,12 @@ async def get_openshift_cluster_operator_status(
 # and the graph exceeds any context budget. Narrow with namespace_filter.
 MAX_TOPOLOGY_NAMESPACES = 100
 
+# Namespaces mapped at the same time. Each namespace task keeps its fetched
+# object lists in memory while it waits for the shared Kubernetes thread pool,
+# so memory grows with the tasks in flight, not with the threads (SPRE-7074:
+# 100 at once OOM-killed a 512Mi pod). Matching the pool size keeps it busy.
+MAX_TOPOLOGY_CONCURRENT_NAMESPACES = MAX_CONCURRENT_CALLS
+
 
 @mcp.tool()
 async def live_system_topology_mapper(
@@ -8787,25 +8793,30 @@ async def live_system_topology_mapper(
                         f"{len(all_namespaces)} namespaces; use namespace_filter to choose")
                     all_namespaces = all_namespaces[:MAX_TOPOLOGY_NAMESPACES]
 
-                logger.info(f"Processing {len(all_namespaces)} namespaces in cluster {cluster_name} in parallel")
+                logger.info(
+                    f"Processing {len(all_namespaces)} namespaces in cluster {cluster_name}, "
+                    f"{MAX_TOPOLOGY_CONCURRENT_NAMESPACES} at a time")
 
-                # Process all namespaces in parallel using asyncio.gather
-                namespace_tasks = [
-                    _process_namespace_topology(
-                        namespace=ns,
-                        cluster_name=cluster_name,
-                        component_types=component_types,
-                        core_api=core_api,
-                        apps_api=apps_api,
-                        custom_api=custom_api,
-                        include_metrics=include_metrics,
-                        skip_on_permission_denied=skip_on_permission_denied,
-                        logger=logger
-                    )
-                    for ns in all_namespaces
-                ]
+                # A namespace task starts only when a slot is free, so at most
+                # MAX_TOPOLOGY_CONCURRENT_NAMESPACES hold fetched objects at once.
+                slots = asyncio.Semaphore(MAX_TOPOLOGY_CONCURRENT_NAMESPACES)
 
-                namespace_results = await asyncio.gather(*namespace_tasks, return_exceptions=True)
+                async def map_namespace(ns: str) -> Dict[str, Any]:
+                    async with slots:
+                        return await _process_namespace_topology(
+                            namespace=ns,
+                            cluster_name=cluster_name,
+                            component_types=component_types,
+                            core_api=core_api,
+                            apps_api=apps_api,
+                            custom_api=custom_api,
+                            include_metrics=include_metrics,
+                            skip_on_permission_denied=skip_on_permission_denied,
+                            logger=logger
+                        )
+
+                namespace_results = await asyncio.gather(
+                    *(map_namespace(ns) for ns in all_namespaces), return_exceptions=True)
 
                 # Aggregate results from all namespaces
                 for i, result in enumerate(namespace_results):
