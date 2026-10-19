@@ -8,7 +8,7 @@
 set -uo pipefail
 
 URL="${PHAROS_URL:-https://pharos-spre-automations.apps.rosa.kflux-c-stg-i01.qfla.p3.openshiftapps.com/mcp}"
-: "${PHAROS_STAGE_TOKEN:?set PHAROS_STAGE_TOKEN (Vault: stonesoup/staging/spre/pharos-token)}"
+: "${PHAROS_STAGE_TOKEN:?set PHAROS_STAGE_TOKEN (bearer token for the Pharos Route)}"
 SOURCES=("$@"); [ ${#SOURCES[@]} -eq 0 ] && SOURCES=("")   # "" = default in-cluster source
 
 ns="${PHAROS_NS:-openshift-apiserver}"   # a namespace that exists on every OCP cluster

@@ -6,7 +6,7 @@ fail-closed auth, `tools/list`, and that ≥10 read-only tools execute.
 ## Run
 
 ```bash
-export PHAROS_STAGE_TOKEN='<token from Vault>'   # vault.devshift.net stonesoup/staging/spre/pharos-token
+export PHAROS_STAGE_TOKEN='<token>'   # bearer token for the Pharos Route
 ./scripts/validate-stage.sh                            # in-cluster source only
 ./scripts/validate-stage.sh <cluster-a> <cluster-b>    # once prod sources are registered
 ```
