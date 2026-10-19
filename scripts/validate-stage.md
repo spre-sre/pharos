@@ -1,8 +1,7 @@
 # validate-stage.sh — scripted stage endpoint check
 
 Automated validation of the stage Pharos Route for SPRE-6652. Confirms reachability,
-fail-closed auth, `tools/list`, and that ≥10 read-only tools execute. For the human
-connect-and-use flow, see [../docs/stage-mcp-onboarding.md](../docs/stage-mcp-onboarding.md).
+fail-closed auth, `tools/list`, and that ≥10 read-only tools execute.
 
 ## Run
 
