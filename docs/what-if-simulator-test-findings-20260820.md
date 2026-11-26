@@ -338,10 +338,6 @@ p02/rh01 numbers above still stand as the last live evidence).
 - The 54MB namespace: `rhtap-releng-tenant` on prd-rh01 (shared release-eng
   namespace, ~20 PLRs stuck Running 2–5h at test time — see
   konflux_reports/prd_rh01_forklift_internal_services_pipeline_lifecycle_trace_20260820.md).
-- Fix-loop rounds 1 and 2 live checks: same in-process harness pattern as
-  Task 7. Round 2 additionally connects prd-p02 via context
-  `default/api-stone-prod-p02-hjvn-p1-openshiftapps-com:6443/ggeorgie` for
-  the latency gate.
 
 ## Post-merge follow-up candidates (from final whole-branch review, 2026-08-21)
 
