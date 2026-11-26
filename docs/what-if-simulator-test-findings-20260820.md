@@ -356,4 +356,3 @@ p02/rh01 numbers above still stand as the last live evidence).
   re-connecting the same name is refused with duplicate_name, so there is no
   recovery path short of a restart. Both are prerequisites for the in-cluster
   fleet deployment.
-- `.claude/worktrees/mc-dispatch` copies of the fixed files now diverge from main-repo (~173 lines in utils.py) — expect conflicts if that worktree's branch is revived.
